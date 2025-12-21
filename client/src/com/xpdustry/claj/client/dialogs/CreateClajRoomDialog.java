@@ -1,18 +1,44 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.client.dialogs;
 
 import com.xpdustry.claj.client.*;
 
+import arc.Core;
+import arc.Events;
 import arc.graphics.Color;
 import arc.scene.ui.Button;
 import arc.scene.ui.Dialog;
 import arc.scene.ui.TextField;
+import arc.scene.ui.layout.Cell;
 import arc.scene.ui.layout.Stack;
 import arc.scene.ui.layout.Table;
+import arc.struct.ArrayMap;
+import arc.struct.Seq;
+import arc.util.Reflect;
 import arc.util.Strings;
 import arc.util.Time;
 import arc.util.Timer;
 
 import mindustry.Vars;
+import mindustry.game.EventType;
 import mindustry.gen.Icon;
 import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
@@ -30,7 +56,7 @@ public class CreateClajRoomDialog extends BaseDialog {
 
   public CreateClajRoomDialog() {
     super("@claj.manage.name");
-    arc.Events.run(mindustry.game.EventType.HostEvent.class, this::closeRoom);
+    Events.run(EventType.HostEvent.class, this::closeRoom);
     
     cont.defaults().width(Vars.mobile ? 480f : 850f);
     
@@ -43,7 +69,7 @@ public class CreateClajRoomDialog extends BaseDialog {
     
     shown(() -> {
       // Just to give time to this dialog to open
-      arc.util.Time.run(7f, () -> {
+      Time.run(7f, () -> {
         refreshCustom();
         refreshOnline();  
       });
@@ -132,7 +158,7 @@ public class CreateClajRoomDialog extends BaseDialog {
     Vars.ui.paused.shown(() -> {
       Table root = Vars.ui.paused.cont;
       @SuppressWarnings("rawtypes")
-      arc.struct.Seq<arc.scene.ui.layout.Cell> buttons = root.getCells();
+      Seq<Cell> buttons = root.getCells();
 
       if (Vars.mobile) {
         root.row().buttonRow("@claj.manage.name", Icon.planet, this::show)
@@ -142,7 +168,7 @@ public class CreateClajRoomDialog extends BaseDialog {
       // Makes a compatilibity for foo's client users, by checking 
       // the hosting button; colspan is normally 2 on vanilla.
       // Also there is no way to get this property, so we need reflection.
-      } else if (arc.util.Reflect.<Integer>get(buttons.get(buttons.size-2), "colspan") == 2) 
+      } else if (Reflect.<Integer>get(buttons.get(buttons.size-2), "colspan") == 2) 
         root.row().button("@claj.manage.name", Icon.planet, this::show).colspan(2).width(450f)
                   .disabled(button -> !Vars.net.server()).row();   
       
@@ -170,16 +196,22 @@ public class CreateClajRoomDialog extends BaseDialog {
     refreshingOnline = true;
     ClajServers.refreshOnline(() -> {
       refreshingOnline = false;
-      setupServers(ClajServers.online, online, false, null);
+      if (ClajServers.online.isEmpty()) {
+        online.clear();
+        online.button("@claj.manage.no-servers-found", () -> {}).growX().padTop(5).padBottom(5).row();
+      } else setupServers(ClajServers.online, online, false, null);
     }, e -> {
       refreshingOnline = false;
+      online.clear();
+      online.button("@claj.manage.check-internet", () -> {}).growX().padTop(5).padBottom(5).row();
       Vars.ui.showException("@claj.manage.fetch-failed", e);
     }); 
   }
   
-  void setupServers(arc.struct.ArrayMap<String, String> servers, Table table, boolean editable, Runnable deleted) {
+  void setupServers(ArrayMap<String, String> servers, Table table, boolean editable, Runnable deleted) {
     selected = null;// in case of
     table.clear();
+
     for (int i=0; i<servers.size; i++) {
       Server server = new Server();
       server.name = servers.getKeyAt(i);
@@ -250,8 +282,8 @@ public class CreateClajRoomDialog extends BaseDialog {
         ping.clear();
         ping.image(Icon.ok).color(Color.green).padLeft(5).padRight(5).left();
         if (Vars.mobile) 
-             ping.row().add(ms+"ms").color(Color.lightGray).padLeft(5).padRight(5).left();
-        else ping.add(ms+"ms").color(Color.lightGray).padRight(5).left();
+             ping.row().add(ms + "ms").color(Color.lightGray).padLeft(5).padRight(5).left();
+        else ping.add(ms + "ms").color(Color.lightGray).padRight(5).left();
         
       }, e -> {
         ping.clear();
@@ -277,7 +309,7 @@ public class CreateClajRoomDialog extends BaseDialog {
     }, r -> {
       Vars.ui.loadfrag.hide();
       t.cancel();
-      if (r != null) Vars.ui.showText("", "@claj.room." + arc.util.Strings.camelToKebab(r.name()));
+      if (r != null) Vars.ui.showText("", "@claj.room." + Strings.camelToKebab(r.name()));
       else if (link == null) Vars.ui.showErrorMessage("@claj.manage.room-creation-failed");
       link = null;
     });
@@ -291,7 +323,7 @@ public class CreateClajRoomDialog extends BaseDialog {
   public void copyLink() {
     if (link == null) return;
 
-    arc.Core.app.setClipboardText(link.toString());
+    Core.app.setClipboardText(link.toString());
     Vars.ui.showInfoFade("@copied");
   }
   

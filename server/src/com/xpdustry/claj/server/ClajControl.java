@@ -1,27 +1,46 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.server;
 
+import java.util.Scanner;
+
+import arc.net.Connection;
 import arc.struct.IntMap;
 import arc.struct.LongMap;
+import arc.util.CommandHandler;
 import arc.util.Log;
-
-import java.util.Scanner;
+import arc.util.OS;
+import arc.util.Threads;
 
 import com.xpdustry.claj.server.plugin.Plugins;
 import com.xpdustry.claj.server.util.Strings;
 
 
-public class ClajControl extends arc.util.CommandHandler {
+public class ClajControl extends CommandHandler {
   public ClajControl() {
     super("");
-
-    // Why the JVM throwing me a NoClassDefFoundError when i stop the server, if i remove that?
-    ResponseType.values();
-    new CommandResponse(null, null, null);
   }
   
   /** Start a new daemon thread listening {@link System#in} for commands. */
   public void start() {
-    arc.util.Threads.daemon("Server Control", () -> {
+    Threads.daemon("Server Control", () -> {
       try (Scanner scanner = new Scanner(System.in)) {
         while (scanner.hasNext()) {
           try { handleCommand(scanner.nextLine()); }
@@ -65,10 +84,11 @@ public class ClajControl extends arc.util.CommandHandler {
     });
     
     register("version", "Displays server version info.", arg -> {
-      Log.info("Version: @", ClajVars.serverVersion);
-      Log.info("Java Version: @", arc.util.OS.javaVersion);
+      Log.info("CLaJ Version: @", ClajVars.serverVersion);
+      Log.info("Java Version: @", OS.javaVersion);
     });
     
+    // Why i added this command? it's useless for this kind of project
     register("gc", "Trigger a garbage collection.", arg -> {
       int pre = (int)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024);
       System.gc();
@@ -86,7 +106,8 @@ public class ClajControl extends arc.util.CommandHandler {
          if (!ClajVars.plugins.list().isEmpty()) {
           Log.info("Plugins: [total: @]", ClajVars.plugins.list().size);
           for (Plugins.LoadedPlugin plugin : ClajVars.plugins.list())
-            Log.info("  @ &fi@ " + (plugin.enabled() ? "" : " &lr(" + plugin.state + ")"), plugin.meta.displayName, plugin.meta.version);
+            Log.info("  @ &fi@ " + (plugin.enabled() ? "" : " &lr(" + plugin.state + ")"), 
+                     plugin.meta.displayName, plugin.meta.version);
 
         } else Log.info("No plugins found.");
         Log.info("Plugin directory: &fi@", ClajVars.pluginsDirectory.file().getAbsoluteFile().toString());
@@ -94,12 +115,12 @@ public class ClajControl extends arc.util.CommandHandler {
       } else {
         Plugins.LoadedPlugin plugin = ClajVars.plugins.list().find(p -> p.meta.name.equalsIgnoreCase(args[0]));
         if (plugin != null) {
-            Log.info("Name: @", plugin.meta.displayName);
-            Log.info("Internal Name: @", plugin.name);
-            Log.info("Version: @", plugin.meta.version);
-            Log.info("Author: @", plugin.meta.author);
-            Log.info("Path: @", plugin.file.path());
-            Log.info("Description: @", plugin.meta.description);
+          Log.info("Name: @", plugin.meta.displayName);
+          Log.info("Internal Name: @", plugin.name);
+          Log.info("Version: @", plugin.meta.version);
+          Log.info("Author: @", plugin.meta.author);
+          Log.info("Path: @", plugin.file.path());
+          Log.info("Description: @", plugin.meta.description);
         } else Log.info("No mod with name '@' found.", args[0]);
       }
     });
@@ -132,7 +153,7 @@ public class ClajControl extends arc.util.CommandHandler {
       for (ClajRoom r : new LongMap.Values<>(ClajVars.relay.rooms)) {
         Log.info("&lk|&fr Room @:", r.idString);
         Log.info("&lk| |&fr [H] Connection @&fr - @", Strings.conIDToString(r.host), Strings.getIP(r.host));
-        for (arc.net.Connection c : new IntMap.Values<>(r.clients))
+        for (Connection c : new IntMap.Values<>(r.clients))
           Log.info("&lk| |&fr [C] Connection @&fr - @", Strings.conIDToString(c), Strings.getIP(c));
         Log.info("&lk|&fr");
       }

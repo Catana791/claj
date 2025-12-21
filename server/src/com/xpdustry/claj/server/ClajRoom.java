@@ -1,13 +1,33 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.server;
 
 import java.nio.ByteBuffer;
-
-import com.xpdustry.claj.server.util.NetworkSpeed;
 
 import arc.net.Connection;
 import arc.net.DcReason;
 import arc.net.NetListener;
 import arc.struct.IntMap;
+
+import com.xpdustry.claj.server.util.NetworkSpeed;
+import com.xpdustry.claj.server.util.Strings;
 
 
 public class ClajRoom implements NetListener {
@@ -29,7 +49,7 @@ public class ClajRoom implements NetListener {
 
   public ClajRoom(long id, Connection host) {
     this.id = id;
-    this.idString = com.xpdustry.claj.server.util.Strings.longToBase64(id);
+    this.idString = Strings.longToBase64(id);
     this.host = host;
   }
 
@@ -86,14 +106,14 @@ public class ClajRoom implements NetListener {
     if (connection == host) {
       // Only claj packets are allowed in the host's connection
       // and can only be ConnectionPacketWrapPacket at this point.
-      if (!(object instanceof ClajPackets.ConnectionPacketWrapPacket)) return;
+      if (!(object instanceof ClajPackets.ConnectionPacketWrapPacket wrap)) return;
 
-      int conID = ((ClajPackets.ConnectionPacketWrapPacket)object).conID;
+      int conID = wrap.conID;
       Connection con = clients.get(conID);
       
       if (con != null && con.isConnected()) {
-        boolean tcp = ((ClajPackets.ConnectionPacketWrapPacket)object).isTCP;
-        Object o = ((ClajPackets.ConnectionPacketWrapPacket)object).buffer;
+        boolean tcp = wrap.isTCP;
+        ByteBuffer o = wrap.buffer;
         
         if (tcp) con.sendTCP(o);
         else con.sendUDP(o);
@@ -112,11 +132,11 @@ public class ClajRoom implements NetListener {
       // Only raw buffers are allowed here.
       // We never send claj packets to anyone other than the room host, framework packets are ignored
       // and mindustry packets are saved as raw buffer.
-      if (!(object instanceof ByteBuffer)) return;
+      if (!(object instanceof ByteBuffer buffer)) return;
       
       ClajPackets.ConnectionPacketWrapPacket p = new ClajPackets.ConnectionPacketWrapPacket();
       p.conID = connection.getID();
-      p.buffer = (ByteBuffer)object;
+      p.buffer = buffer;
       host.sendTCP(p);
       
       transferredPackets.addDownloadMark();
@@ -156,6 +176,7 @@ public class ClajRoom implements NetListener {
   public void close() {
     close(ClajPackets.RoomClosedPacket.CloseReason.closed);
   }
+  
   /** 
    * Closes the room and disconnects the host and all clients. 
    * The room object cannot be used anymore after this.
@@ -170,7 +191,7 @@ public class ClajRoom implements NetListener {
     host.sendTCP(p);
     
     host.close(DcReason.closed);
-    clients.values().forEach(c -> c.close(DcReason.closed));
+    for (Connection c : clients.values()) c.close(DcReason.closed);
     clients.clear();
   }
   

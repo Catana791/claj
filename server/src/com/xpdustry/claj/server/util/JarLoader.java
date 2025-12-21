@@ -8,7 +8,7 @@ import arc.files.Fi;
 
 public class JarLoader {
   public static ClassLoader load(Fi jar, ClassLoader parent) throws Exception {
-    return new URLClassLoader(new URL[] {jar.file().toURI().toURL()}, parent){
+    return new URLClassLoader(new URL[] {jar.file().toURI().toURL()}, parent) {
       @Override
       protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         //check for loaded state
@@ -17,7 +17,10 @@ public class JarLoader {
           //try to load own class first
           try { loadedClass = findClass(name); }
           //use parent if not found
-          catch (ClassNotFoundException e) { return parent.loadClass(name); }
+          catch (ClassNotFoundException e) { 
+            if (parent != null) return parent.loadClass(name); 
+            throw e;
+          }
         }
 
         if (resolve) resolveClass(loadedClass);

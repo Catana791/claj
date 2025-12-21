@@ -3,6 +3,7 @@ package com.xpdustry.claj.server.util;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.net.InetSocketAddress;
 
 import arc.func.Intf;
 import arc.net.Connection;
@@ -213,7 +214,7 @@ public class Strings extends arc.util.Strings {
   }
   
   public static String getIP(Connection con) {
-    java.net.InetSocketAddress a = con.getRemoteAddressTCP();
+    InetSocketAddress a = con.getRemoteAddressTCP();
     return a == null ? null : a.getAddress().getHostAddress();
   }
   
@@ -221,8 +222,8 @@ public class Strings extends arc.util.Strings {
   public static String longToBase64(long l) {
     byte[] result = new byte[Long.BYTES];
     for (int i=Long.BYTES-1; i>=0; i--) {
-        result[i] = (byte)(l & 0xFF);
-        l >>= 8;
+      result[i] = (byte)(l & 0xFF);
+      l >>= 8;
     }
     return new String(Base64Coder.encode(result, Base64Coder.urlsafeMap));
   }
@@ -232,8 +233,8 @@ public class Strings extends arc.util.Strings {
     if (b.length != Long.BYTES) throw new IndexOutOfBoundsException("must be " + Long.BYTES + " bytes");
     long result = 0;
     for (int i=0; i<Long.BYTES; i++) {
-        result <<= 8;
-        result |= (b[i] & 0xFF);
+      result <<= 8;
+      result |= (b[i] & 0xFF);
     }
     return result;
   }

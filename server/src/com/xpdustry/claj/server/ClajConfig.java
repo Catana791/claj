@@ -1,8 +1,29 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.server;
 
-import com.xpdustry.claj.server.util.JsonSettings;
-
+import arc.Files;
+import arc.files.Fi;
 import arc.struct.Seq;
+
+import com.xpdustry.claj.server.util.JsonSettings;
 
 
 public class ClajConfig {
@@ -25,8 +46,7 @@ public class ClajConfig {
   @SuppressWarnings("unchecked")
   public static void load() {
     // Load file
-    if (settings == null) 
-      settings = new JsonSettings(new arc.files.Fi(fileName, arc.Files.FileType.local));
+    if (settings == null) settings = new JsonSettings(new Fi(fileName, Files.FileType.local));
     settings.load();
     
     // Load values
@@ -36,8 +56,7 @@ public class ClajConfig {
     warnClosing = settings.getBool("warn-closing", warnClosing);
     blacklist = settings.get("blacklist", Seq.class, String.class, blacklist);
     
-    // Will create the file of not existing yet, 
-    // but also to avoid a NoClassDefFoundError when stopping the server.
+    // Will create the file of not existing yet.
     save(); 
   }
 

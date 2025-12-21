@@ -1,29 +1,56 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.client;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.Selector;
 
+import arc.Core;
 import arc.func.Cons;
 import arc.net.ArcNetException;
 import arc.net.Client;
 import arc.net.Connection;
 import arc.net.DcReason;
 import arc.net.NetListener;
+import arc.net.Server;
 import arc.struct.IntMap;
 import arc.struct.Seq;
+import arc.util.Log;
 import arc.util.Ratekeeper;
 import arc.util.Reflect;
+import arc.util.Strings;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
 import mindustry.Vars;
 import mindustry.gen.Call;
+import mindustry.net.ArcNetProvider;
+import mindustry.net.Net.NetProvider;
+import mindustry.net.NetConnection;
 
 
 public class ClajProxy extends Client implements NetListener {
   public static int defaultTimeout = 5000; //ms
-  /** No-op rate keeper, to avoid the player's server from life blacklisting the claj server . */
+  /** No-op rate keeper, to avoid the player's server from life blacklisting the claj server. */
   private static final Ratekeeper noopRate = new Ratekeeper() {
     @Override
     public boolean allow(long spacing, int cap) {
@@ -32,22 +59,22 @@ public class ClajProxy extends Client implements NetListener {
   };
   
   /** For faster get */
-  private final IntMap<VirtualConnection> connections = new IntMap<>();
+  protected final IntMap<VirtualConnection> connectionsMap = new IntMap<>();
   /** For faster iteration */
-  private final Seq<VirtualConnection> orderedConnections = new Seq<>(false);
-  private final arc.net.Server server;
-  private final NetListener serverDispatcher;
-  private Cons<Long> roomCreated;
-  private Cons<ClajPackets.RoomClosedPacket.CloseReason> roomClosed;
-  private ClajPackets.RoomClosedPacket.CloseReason closeReason;
-  private long roomId = -1;
-  private volatile boolean shutdown;
+  protected final Seq<VirtualConnection> connectionsArray = new Seq<>(false);
+  protected final Server server;
+  protected final NetListener serverDispatcher;
+  protected Cons<Long> roomCreated;
+  protected Cons<ClajPackets.RoomClosedPacket.CloseReason> roomClosed;
+  protected ClajPackets.RoomClosedPacket.CloseReason closeReason;
+  protected long roomId = -1;
+  protected volatile boolean shutdown;
 
   public ClajProxy() {
     super(32768, 16384, new Serializer());
     addListener(this);
     
-    mindustry.net.Net.NetProvider provider = Reflect.get(Vars.net, "provider");
+    NetProvider provider = Reflect.get(Vars.net, "provider");
     if (Vars.steam) provider = Reflect.get(provider, "provider");
 
     server = Reflect.get(provider, "server");
@@ -57,7 +84,7 @@ public class ClajProxy extends Client implements NetListener {
 
   /** This method must be used instead of others connect methods */
   public void connect(String host, int udpTcpPort, Cons<Long> roomCreatedCallback, 
-                      Cons<ClajPackets.RoomClosedPacket.CloseReason> roomClosedCallback) throws java.io.IOException {
+                      Cons<ClajPackets.RoomClosedPacket.CloseReason> roomClosedCallback) throws IOException {
     roomCreated = roomCreatedCallback;
     roomClosed = roomClosedCallback;
     connect(defaultTimeout, host, udpTcpPort, udpTcpPort);
@@ -74,19 +101,16 @@ public class ClajProxy extends Client implements NetListener {
       try { 
         update(250); 
         // update idle
-        for (int i=0; i<orderedConnections.size; i++) {
-          VirtualConnection con = orderedConnections.get(i);
-          if (con.isConnected() && con.isIdle())
-            con.notifyIdle0();
-        }
+        connectionsArray.each(VirtualConnection::idling, VirtualConnection::notifyIdle0);
       } catch (IOException ex) { 
-        close(); 
+        closeRoom(); 
       } catch (ArcNetException ex) {
+        // Re-throw the error if the room was not created yet, else just print it
         if (roomId == -1) {
-          close();
+          closeRoom();
           Reflect.set(Connection.class, this, "lastProtocolError", ex);
           throw ex;
-        }
+        } else Log.err("Ignored Exception", ex);
       }
     }
   }
@@ -95,13 +119,17 @@ public class ClajProxy extends Client implements NetListener {
   @Override
   public void stop() {
     if(shutdown) return;
-    close();
+    closeRoom();
     shutdown = true;
-    Reflect.<java.nio.channels.Selector>get(Client.class, this, "selector").wakeup();
+    Reflect.<Selector>get(Client.class, this, "selector").wakeup();
   }
   
   public long roomId() {
     return roomId;
+  }
+  
+  public boolean isRunning() {
+    return !shutdown;
   }
   
   public void closeRoom() {
@@ -114,7 +142,7 @@ public class ClajProxy extends Client implements NetListener {
   public void connected(Connection connection) {
     // Request the room link
     ClajPackets.RoomCreationRequestPacket p = new ClajPackets.RoomCreationRequestPacket();
-    p.version = Main.getVersion(); // TODO: find a better way to get the mod version
+    p.version = Main.getMeta().version;
     sendTCP(p);
   }
 
@@ -123,9 +151,9 @@ public class ClajProxy extends Client implements NetListener {
     roomId = -1;
     if (roomClosed != null) roomClosed.get(closeReason);
     // We cannot communicate with the server anymore, so close all virtual connections
-    orderedConnections.each(c -> c.closeQuietly(reason));
-    connections.clear();
-    orderedConnections.clear();
+    connectionsArray.each(c -> c.closeQuietly(reason));
+    connectionsMap.clear();
+    connectionsArray.clear();
   }
 
   @Override
@@ -133,39 +161,42 @@ public class ClajProxy extends Client implements NetListener {
     if (!(object instanceof ClajPackets.Packet)) {
       return;
 
-    } else if (object instanceof ClajPackets.ClajMessagePacket) {
-      Call.sendMessage("[scarlet][[CLaJ Server]:[] " + ((ClajPackets.ClajMessagePacket)object).message);
-    
-    } else if (object instanceof ClajPackets.ClajMessage2Packet) {
-      Call.sendMessage("[scarlet][[CLaJ Server]:[] " + arc.Core.bundle.get("claj.message." + 
-          arc.util.Strings.camelToKebab(((ClajPackets.ClajMessage2Packet)object).message.name())));
-    
-    } else if (object instanceof ClajPackets.ClajPopupPacket) {
-      Vars.ui.showText("[scarlet][[CLaJ Server][] ", ((ClajPackets.ClajPopupPacket)object).message);
+    } else if (object instanceof ClajPackets.ClajPopupPacket popup) {
+      // UI#showText place the title to the wrong side =/
+      //Vars.ui.showText("[scarlet][[CLaJ Server][] ", popup.message);
+      Vars.ui.showOkText("[scarlet][[CLaJ Server][] ", popup.message, () -> {});
       
-    } else if (object instanceof ClajPackets.RoomClosedPacket) {
-      closeReason = ((ClajPackets.RoomClosedPacket)object).reason;
+    } else if (object instanceof ClajPackets.ClajMessagePacket msg) {
+      Call.sendMessage("[scarlet][[CLaJ Server]:[] " + msg.message);
+    
+    } else if (object instanceof ClajPackets.ClajMessage2Packet msg2) {
+      Call.sendMessage("[scarlet][[CLaJ Server]:[] " +
+                       Core.bundle.get("claj."
+                           + "message." + Strings.camelToKebab(msg2.message.name())));
+    
+    } else if (object instanceof ClajPackets.RoomClosedPacket close) {
+      closeReason = close.reason;
       
-    } else if (object instanceof ClajPackets.RoomLinkPacket) {
+    } else if (object instanceof ClajPackets.RoomLinkPacket link) {
       // Ignore if the room id is received twice
       if (roomId != -1) return;
       
-      roomId = ((ClajPackets.RoomLinkPacket)object).roomId;
+      roomId = link.roomId;
       // -1 is not allowed since it's used to specify an uncreated room
       if (roomId != -1 && roomCreated != null) roomCreated.get(roomId);      
       
-    } else if (object instanceof ClajPackets.ConnectionWrapperPacket) {
+    } else if (object instanceof ClajPackets.ConnectionWrapperPacket wrapper) {
       // Ignore packets until the room id is received
       if (roomId == -1) return;
       
-      int id = ((ClajPackets.ConnectionWrapperPacket)object).conID;
-      VirtualConnection con = connections.get(id);
+      int id = wrapper.conID;
+      VirtualConnection con = connectionsMap.get(id);
       
       if (con == null) {
         // Create a new connection
-        if (object instanceof ClajPackets.ConnectionJoinPacket) {
+        if (object instanceof ClajPackets.ConnectionJoinPacket join) {
           // Check if the link is the right
-          if (((ClajPackets.ConnectionJoinPacket)object).roomId != roomId) {
+          if (join.roomId != roomId) {
             ClajPackets.ConnectionClosedPacket p = new ClajPackets.ConnectionClosedPacket();
             p.conID = id;
             p.reason = DcReason.error;
@@ -173,44 +204,51 @@ public class ClajProxy extends Client implements NetListener {
             return;
           }
 
-          addConnection(con = new VirtualConnection(this, id));
-          con.notifyConnected0();
-          // Change the packet rate and chat rate to a no-op version
-          ((mindustry.net.NetConnection)con.getArbitraryData()).packetRate = noopRate;
-          ((mindustry.net.NetConnection)con.getArbitraryData()).chatRate = noopRate;
+          final VirtualConnection con0 = new VirtualConnection(this, id);
+          addConnection(con0);
+          Core.app.post(() -> {
+            con0.notifyConnected0();
+            // Change the packet rate and chat rate to a no-op version
+            ((NetConnection)con0.getArbitraryData()).packetRate = noopRate;
+            ((NetConnection)con0.getArbitraryData()).chatRate = noopRate;
+          });
         }
 
-      } else if (object instanceof ClajPackets.ConnectionPacketWrapPacket) {
-        con.notifyReceived0(((ClajPackets.ConnectionPacketWrapPacket)object).object);
+      } else if (object instanceof ClajPackets.ConnectionPacketWrapPacket wrap) {
+        Core.app.post(() -> con.notifyReceived0(wrap.object));
 
       } else if (object instanceof ClajPackets.ConnectionIdlingPacket) {
-        con.setIdle();
+        Core.app.post(() -> con.setIdle());
 
-      } else if (object instanceof ClajPackets.ConnectionClosedPacket) {
-        con.closeQuietly(((ClajPackets.ConnectionClosedPacket)object).reason);
+      } else if (object instanceof ClajPackets.ConnectionClosedPacket close) {
+        Core.app.post(() -> con.closeQuietly(close.reason));
       }
     }
   }
   
-  protected void addConnection(VirtualConnection con) {
-    connections.put(con.id, con);
-    orderedConnections.add(con);
+  public void addConnection(VirtualConnection con) {
+    connectionsMap.put(con.id, con);
+    connectionsArray.add(con);
   }
   
-  protected void removeConnection(VirtualConnection con) {
-    connections.remove(con.id);
-    orderedConnections.remove(con);
+  public void removeConnection(VirtualConnection con) {
+    connectionsMap.remove(con.id);
+    connectionsArray.remove(con);
   }
 
+  public Seq<VirtualConnection> getConnections() {
+    return connectionsArray;
+  }
   
-  public static class Serializer extends mindustry.net.ArcNetProvider.PacketSerializer {
+  
+  public static class Serializer extends ArcNetProvider.PacketSerializer {
     @Override
     public Object read(ByteBuffer buffer) {
       if (buffer.get() == ClajPackets.id) {
         ClajPackets.Packet p = ClajPackets.newPacket(buffer.get());
         p.read(new ByteBufferInput(buffer));
-        if (p instanceof ClajPackets.ConnectionPacketWrapPacket) // This one is special
-          ((ClajPackets.ConnectionPacketWrapPacket)p).object = super.read(buffer);
+        if (p instanceof ClajPackets.ConnectionPacketWrapPacket wrap) // This one is special
+          wrap.object = super.read(buffer);
         return p;
       }
 
@@ -224,8 +262,8 @@ public class ClajProxy extends Client implements NetListener {
         ClajPackets.Packet p = (ClajPackets.Packet)object;
         buffer.put(ClajPackets.id).put(ClajPackets.getId(p));
         p.write(new ByteBufferOutput(buffer));
-        if (p instanceof ClajPackets.ConnectionPacketWrapPacket) // This one is special
-          super.write(buffer, ((ClajPackets.ConnectionPacketWrapPacket)p).object);
+        if (p instanceof ClajPackets.ConnectionPacketWrapPacket wrap) // This one is special
+          super.write(buffer, wrap.object);
         return;
       }
 
@@ -316,13 +354,18 @@ public class ClajProxy extends Client implements NetListener {
     @Override
     public InetSocketAddress getRemoteAddressUDP() { return isConnected() ? proxy.getRemoteAddressUDP() : null; }
     @Override
-    public int getTcpWriteBufferSize() { return 0; } // never used
+    public int getTcpWriteBufferSize() { return proxy.getTcpWriteBufferSize(); } // never used
     @Override
     public boolean isIdle() { return isIdling; }
     @Override
     public void setIdleThreshold(float idleThreshold) {} // never used
     @Override
     public String toString() { return "Connection " + id; }
+    
+    /** @return {@link #isConnected()} {@code &&} {@link #isIdle()}. */
+    public boolean idling() {
+      return isConnected && isIdling;
+    }
     
     /** Only used when sending world data */
     public void addListener(NetListener listener) {

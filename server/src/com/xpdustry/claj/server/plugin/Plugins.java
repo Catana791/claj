@@ -1,17 +1,29 @@
-package com.xpdustry.claj.server.plugin;
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
-import com.xpdustry.claj.server.ClajVars;
-import com.xpdustry.claj.server.util.JarLoader;
+package com.xpdustry.claj.server.plugin;
 
 import arc.files.Fi;
 import arc.files.ZipFi;
 import arc.func.Cons;
 import arc.func.Cons2;
-import arc.struct.ObjectMap;
-import arc.struct.ObjectSet;
-import arc.struct.OrderedMap;
-import arc.struct.OrderedSet;
-import arc.struct.Seq;
+import arc.struct.*;
 import arc.util.Log;
 import arc.util.Nullable;
 import arc.util.Strings;
@@ -20,31 +32,49 @@ import arc.util.Time;
 import arc.util.serialization.Json;
 import arc.util.serialization.Jval;
 
+import com.xpdustry.claj.server.ClajVars;
+import com.xpdustry.claj.server.util.JarLoader;
 
-/**
- * Simplified {@link mindustry.mod.Mods} that only handles plugins.
- */
+
+/** Simplified {@link mindustry.mod.Mods} that only handles plugins. */
 public class Plugins {
   private static final String[] metaFiles = {"plugin.json", "plugin.hjson"};
 
-  private PluginClassLoader mainLoader = new PluginClassLoader(getClass().getClassLoader());
-  private Json json = new Json();
+  private final PluginClassLoader mainLoader = new PluginClassLoader(getClass().getClassLoader());
+  private final Json json = new Json();
   /** Ordered plugins cache. Set to null to invalidate. */
   private @Nullable Seq<LoadedPlugin> lastOrderedPlugins = new Seq<>();
   
-  private Seq<LoadedPlugin> plugins = new Seq<>();
-  private ObjectMap<Class<?>, PluginMeta> metas = new ObjectMap<>();
+  private final Seq<LoadedPlugin> plugins = new Seq<>();
+  private final ObjectMap<Class<?>, PluginMeta> metas = new ObjectMap<>();
 
   /** @return the main class loader for all plugins */
   public ClassLoader mainLoader() {
     return mainLoader;
   }
 
+  /** @return the folder where configuration files for this plugin should go. Call this in init(). */
+  public Fi getConfigFolder(Plugin plugin){
+    Fi result = ClajVars.pluginsDirectory.child(getMeta(plugin).name);
+    result.mkdirs();
+    return result;
+  }
+  
   /** Returns a file named 'config.json' in a special folder for the specified plugin. Call this in init(). */
   public Fi getConfig(Plugin plugin) {
-    PluginMeta load = metas.get(plugin.getClass());
+    return ClajVars.pluginsDirectory.child(getMeta(plugin).name).child("config.json");
+  }
+  
+  /** Returns the plugin meta data. Call this in init(). */
+  public PluginMeta getMeta(Plugin plugin) {
+    return getMeta(plugin.getClass());
+  }
+  
+  /** Returns the plugin meta. Call this in init(). */
+  public PluginMeta getMeta(Class<? extends Plugin> clazz) {
+    PluginMeta load = metas.get(clazz);
     if(load == null) throw new IllegalArgumentException("Plugin is not loaded yet (or missing)!");
-    return ClajVars.pluginsDirectory.child(load.name).child("config.json");
+    return load;
   }
 
   /** Returns a list of files per plugin subdirectory. */
@@ -74,12 +104,17 @@ public class Plugins {
 
     // Add local plugins
     Seq.with(ClajVars.pluginsDirectory.list())
-       .retainAll(f -> f.extEquals("jar") || f.extEquals("zip") || (f.isDirectory() && Structs.contains(metaFiles, meta -> f.child(meta).exists())))
+       .retainAll(f -> f.extEquals("jar") || f.extEquals("zip") || 
+                      (f.isDirectory() && Structs.contains(metaFiles, meta -> f.child(meta).exists())))
        .each(candidates::add);
 
     ObjectMap<String, Fi> mapping = new ObjectMap<>();
     Seq<PluginMeta> metas = new Seq<>();
 
+    // TODO: Plugins are experimental for now
+    if (candidates.any()) 
+      Log.warn("Detected server plugins! Please not that CLaJ plugins are an experimental feature and are subject to change.");
+    
     for (Fi file : candidates) {
       PluginMeta meta = null;
 
@@ -91,7 +126,7 @@ public class Plugins {
 
       if (meta == null || meta.name == null) continue;
       metas.add(meta);
-      mapping.put(meta.internalName, file);
+      mapping.put(meta.name, file);
     }
 
     OrderedMap<String, PluginState> resolved = resolveDependencies(metas);
@@ -141,7 +176,7 @@ public class Plugins {
       //only enabled plugins participate; this state is resolved in load()
       Seq<LoadedPlugin> enabled = plugins.select(LoadedPlugin::enabled);
 
-      ObjectMap<String, LoadedPlugin> mapping = enabled.asMap(m -> m.meta.internalName);
+      ObjectMap<String, LoadedPlugin> mapping = enabled.asMap(m -> m.name);
       lastOrderedPlugins = resolveDependencies(enabled.map(m -> m.meta)).orderedKeys().map(mapping::get);
     }
     return lastOrderedPlugins;
@@ -211,11 +246,11 @@ public class Plugins {
         dependencies.add(new PluginDependency(dependency, true));
       for (String dependency : meta.softDependencies)
         dependencies.add(new PluginDependency(dependency, false));
-      context.dependencies.put(meta.internalName, dependencies);
+      context.dependencies.put(meta.name, dependencies);
     }
 
     for (String key : context.dependencies.keys()) {
-      if(context.ordered.contains(key)) continue;
+      if (context.ordered.contains(key)) continue;
       resolve(key, context);
       context.visited.clear();
     }
@@ -296,7 +331,7 @@ public class Plugins {
 
     String[] path = (mainClass.replace('.', '/') + ".class").split("/");
     for (String str : path) {
-      if(!str.isEmpty()) mainFile = mainFile.child(str);
+      if (!str.isEmpty()) mainFile = mainFile.child(str);
     }
 
     //make sure the main class exists before loading it; if it doesn't just don't put it there
@@ -347,7 +382,7 @@ public class Plugins {
       this.loader = loader;
       this.main = main;
       this.meta = meta;
-      this.name = meta.name.toLowerCase().replace(" ", "-");
+      this.name = meta.name;
     }
 
     @Nullable
@@ -375,24 +410,21 @@ public class Plugins {
 
   /** Plugin metadata information.*/
   public static class PluginMeta {
-    /** Name as defined in plugin.json. Stripped of colors, but may contain spaces. */
+    /** Name as defined in plugin.json. Stripped of colors, without spaces in all lower case. */
     public String name;
-    /** Name without spaces in all lower case. */
-    public String internalName;
     public @Nullable String displayName, author, description, version, repo;
     /** Plugin's main class. */
     public String main;
     public Seq<String> dependencies = new Seq<>();
     public Seq<String> softDependencies = new Seq<>();
 
-    //removes all colors
+    /** Removes all colors */
     public void cleanup() {
-      if(name != null) name = Strings.stripColors(name);
-      if(displayName != null) displayName = Strings.stripColors(displayName);
-      if(displayName == null) displayName = name;
-      if(author != null) author = Strings.stripColors(author);
-      if(description != null) description = Strings.stripColors(description);
-      if(name != null) internalName = name.toLowerCase().replace(" ", "-");
+      if (name != null) name = Strings.stripColors(name).toLowerCase().replace(" ", "-");
+      if (displayName != null) displayName = Strings.stripColors(displayName);
+      if (displayName == null && name != null) displayName = Strings.capitalize(name);
+      if (author != null) author = Strings.stripColors(author);
+      if (description != null) description = Strings.stripColors(description);
     }
 
     @Override
@@ -411,20 +443,23 @@ public class Plugins {
     }
   }
 
+  
   @SuppressWarnings("serial")
   public static class ModLoadException extends RuntimeException {
-    public ModLoadException(String message) {
-      super(message);
+    public ModLoadException(String message) { 
+      super(message); 
     }
   }
 
-  public enum PluginState{
+  
+  public enum PluginState {
     enabled,
     missingDependencies,
     incompleteDependencies,
     circularDependencies,
   }
 
+  
   public static class PluginResolutionContext {
     public final ObjectMap<String, Seq<PluginDependency>> dependencies = new ObjectMap<>();
     public final ObjectSet<String> visited = new ObjectSet<>();
@@ -432,11 +467,11 @@ public class Plugins {
     public final ObjectMap<String, PluginState> invalid = new OrderedMap<>();
   }
 
-  public static final class PluginDependency{
+  public static final class PluginDependency {
     public final String name;
     public final boolean required;
 
-    public PluginDependency(String name, boolean required){
+    public PluginDependency(String name, boolean required) {
       this.name = name;
       this.required = required;
     }

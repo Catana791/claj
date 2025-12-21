@@ -1,10 +1,27 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.server;
 
 import java.nio.ByteBuffer;
 
-import com.xpdustry.claj.server.util.NetworkSpeed;
-import com.xpdustry.claj.server.util.Strings;
-
+import arc.math.Mathf;
 import arc.net.Connection;
 import arc.net.DcReason;
 import arc.net.FrameworkMessage;
@@ -17,9 +34,13 @@ import arc.struct.IntSet;
 import arc.struct.LongMap;
 import arc.util.Log;
 import arc.util.Ratekeeper;
+import arc.util.Structs;
 import arc.util.Threads;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
+
+import com.xpdustry.claj.server.util.NetworkSpeed;
+import com.xpdustry.claj.server.util.Strings;
 
 
 public class ClajRelay extends Server implements NetListener {
@@ -131,9 +152,8 @@ public class ClajRelay extends Server implements NetListener {
   
   @Override
   public void received(Connection connection, Object object) {
-    if (!(connection.getArbitraryData() instanceof Ratekeeper) || (object instanceof FrameworkMessage)) return;
+    if (!(connection.getArbitraryData() instanceof Ratekeeper rate) || (object instanceof FrameworkMessage)) return;
     notifiedIdle.remove(connection.getID());
-    Ratekeeper rate = (Ratekeeper)connection.getArbitraryData();
     ClajRoom room = find(connection);
     
     // Simple packet spam protection, ignored for room hosts
@@ -157,7 +177,7 @@ public class ClajRelay extends Server implements NetListener {
       Log.warn("Rejected room creation of connection @ for incompatible version.", Strings.conIDToString(connection));
       ClajEvents.fire(new ClajEvents.RoomCreationRejectedEvent(connection, ClajPackets.RoomClosedPacket.CloseReason.obsoleteClient));
       
-    } else if (object instanceof ClajPackets.RoomJoinPacket) {
+    } else if (object instanceof ClajPackets.RoomJoinPacket join) {
       // Disconnect from a potential another room.
       if (room != null) {
         // Ignore if it's the host of another room
@@ -165,14 +185,14 @@ public class ClajRelay extends Server implements NetListener {
           room.message(ClajPackets.ClajMessage2Packet.MessageType.alreadyHosting);
           Log.warn("Connection @ tried to join the room @ but is already hosting the room @.", 
                    Strings.conIDToString(connection), 
-                   Strings.longToBase64(((ClajPackets.RoomJoinPacket)object).roomId), room.idString);
+                   Strings.longToBase64(join.roomId), room.idString);
           ClajEvents.fire(new ClajEvents.ActionDeniedEvent(connection, ClajPackets.ClajMessage2Packet.MessageType.alreadyHosting));
           return;
         }
         room.disconnected(connection, DcReason.closed);
       }
 
-      room = get(((ClajPackets.RoomJoinPacket)object).roomId);
+      room = get(join.roomId);
       if (room != null) {
         room.connected(connection);
         Log.info("Connection @ joined the room @.", Strings.conIDToString(connection), room.idString);
@@ -187,11 +207,11 @@ public class ClajRelay extends Server implements NetListener {
         }
         
         ClajEvents.fire(new ClajEvents.ConnectionJoinedEvent(connection, room));
-        
+
       //TODO: make a limit to avoid room searching; e.g. if more than 100 in one minute, ignore request for 10 min
       } else connection.close(DcReason.error);
 
-    } else if (object instanceof ClajPackets.RoomCreationRequestPacket) {
+    } else if (object instanceof ClajPackets.RoomCreationRequestPacket create) {
       // Ignore room creation requests when the server is closing
       if (isClosed()) {
         ClajPackets.RoomClosedPacket p = new ClajPackets.RoomClosedPacket();
@@ -203,7 +223,7 @@ public class ClajRelay extends Server implements NetListener {
       }
       
       // Check the version of client
-      String version = ((ClajPackets.RoomCreationRequestPacket)object).version;
+      String version = create.version;
       // Ignore the last part of version, the minor part. (versioning format: 2.major.minor)
       // The minor part is used when no changes have been made to the protocol itself. (sending/receiving way)
       if (version == null || Strings.isVersionAtLeast(version, ClajVars.serverVersion, 2)) {
@@ -247,21 +267,21 @@ public class ClajRelay extends Server implements NetListener {
       Log.info("Room @ closed by connection @ (the host).", room.idString, Strings.conIDToString(connection));
       ClajEvents.fire(new ClajEvents.RoomClosedEvent(room));
     
-    } else if (object instanceof ClajPackets.ConnectionClosedPacket) {
+    } else if (object instanceof ClajPackets.ConnectionClosedPacket close) {
       // Only room host can request a connection closing
       if (room == null) return;
       if (room.host != connection) {
         room.message(ClajPackets.ClajMessage2Packet.MessageType.conClosureDenied);
         Log.warn("Connection @ tried to close the connection @ but is not the host of room @.", 
                  Strings.conIDToString(connection), 
-                 Strings.conIDToString(((ClajPackets.ConnectionClosedPacket)object).conID), room.idString);
+                 Strings.conIDToString(close.conID), room.idString);
         ClajEvents.fire(new ClajEvents.ActionDeniedEvent(connection, ClajPackets.ClajMessage2Packet.MessageType.conClosureDenied));
         return;
       }
       
-      int conID = ((ClajPackets.ConnectionClosedPacket)object).conID;
-      Connection con = arc.util.Structs.find(getConnections(), c -> c.getID() == conID);
-      DcReason reason = ((ClajPackets.ConnectionClosedPacket)object).reason;
+      int conID = close.conID;
+      Connection con = Structs.find(getConnections(), c -> c.getID() == conID);
+      DcReason reason = close.reason;
       
       // Ignore when trying to close itself or closing one that not in the same room
       if (con == connection || !room.contains(con)) {
@@ -280,15 +300,14 @@ public class ClajRelay extends Server implements NetListener {
       
     // Ignore if the connection is not in a room
     } else if (room != null) {
-      if (room.host == connection && (object instanceof ClajPackets.ConnectionWrapperPacket))
-        notifiedIdle.remove(((ClajPackets.ConnectionWrapperPacket)object).conID);
+      if (room.host == connection && (object instanceof ClajPackets.ConnectionWrapperPacket wrapper))
+        notifiedIdle.remove(wrapper.conID);
       
       room.received(connection, object);
 
     // Puts in queue; if full, future packets will be ignored.
-    } else if (object instanceof ByteBuffer) {
+    } else if (object instanceof ByteBuffer buffer) {
       ByteBuffer[] queue = packetQueue.get(connection.getID(), () -> new ByteBuffer[packetQueueSize]);
-      ByteBuffer buffer = (ByteBuffer)object;
       
       for (int i=0; i<queue.length; i++) {
         if (queue[i] == null) {
@@ -312,7 +331,7 @@ public class ClajRelay extends Server implements NetListener {
   public long newRoomId() {
     long id;
     /* re-roll if -1 because it's used to specify an uncreated room */ 
-    do { id = arc.math.Mathf.rand.nextLong(); } 
+    do { id = Mathf.rand.nextLong(); } 
     while (id == -1 || rooms.containsKey(id));
     return id;
   }
@@ -330,7 +349,7 @@ public class ClajRelay extends Server implements NetListener {
 
 
   public static class Serializer implements NetSerializer {
-    private final ThreadLocal<ByteBuffer> last = arc.util.Threads.local(() -> ByteBuffer.allocate(16384));
+    private final ThreadLocal<ByteBuffer> last = Threads.local(() -> ByteBuffer.allocate(16384));
     private final NetworkSpeed networkSpeed;
     private int lastPos;
     
@@ -353,9 +372,8 @@ public class ClajRelay extends Server implements NetListener {
       if (id == ClajPackets.id) {
         ClajPackets.Packet packet = ClajPackets.newPacket(buffer.get());
         packet.read(new ByteBufferInput(buffer));
-        if (packet instanceof ClajPackets.ConnectionPacketWrapPacket) // This one is special
-          ((ClajPackets.ConnectionPacketWrapPacket)packet).buffer = 
-              (ByteBuffer)((ByteBuffer)last.get().clear()).put(buffer).flip();
+        if (packet instanceof ClajPackets.ConnectionPacketWrapPacket wrap) // This one is special
+          wrap.buffer = (ByteBuffer)((ByteBuffer)last.get().clear()).put(buffer).flip();
         return packet;
       }
 
@@ -367,37 +385,39 @@ public class ClajRelay extends Server implements NetListener {
     public void write(ByteBuffer buffer, Object object) {
       if (networkSpeed != null) lastPos = buffer.position();
       
-      if (object instanceof ByteBuffer) {
-        buffer.put((ByteBuffer)object);
+      if (object instanceof ByteBuffer buf) {
+        buffer.put(buf);
           
-      } else if (object instanceof FrameworkMessage) {
+      } else if (object instanceof FrameworkMessage framework) {
         buffer.put((byte)-2); //framework id
-        writeFramework(buffer, (FrameworkMessage)object);
+        writeFramework(buffer, framework);
         
-      } else if ((object instanceof String) && ClajConfig.warnDeprecated) {
+      } else if (object instanceof String str && ClajConfig.warnDeprecated) {
         buffer.put((byte)-3/*old claj version*/);
-        try { new ByteBufferOutput(buffer).writeUTF((String)object); }
+        try { new ByteBufferOutput(buffer).writeUTF(str); }
         catch (Exception e) { throw new RuntimeException(e); }          
         
-      } else if (object instanceof ClajPackets.Packet) {
-        ClajPackets.Packet packet = (ClajPackets.Packet)object;
+      } else if (object instanceof ClajPackets.Packet packet) {
         buffer.put(ClajPackets.id).put(ClajPackets.getId(packet));
         packet.write(new ByteBufferOutput(buffer));
-        if (packet instanceof ClajPackets.ConnectionPacketWrapPacket) // This one is special
-          buffer.put(((ClajPackets.ConnectionPacketWrapPacket)packet).buffer);
+        if (packet instanceof ClajPackets.ConnectionPacketWrapPacket wrap) // This one is special
+          buffer.put(wrap.buffer);
       }
       
       if (networkSpeed != null) networkSpeed.addUploadMark(buffer.position() - lastPos);
     }
 
     public void writeFramework(ByteBuffer buffer, FrameworkMessage message) {
-      if (message instanceof Ping) {
-        Ping ping = (Ping)message;
-        buffer.put((byte) 0).putInt(ping.id).put(ping.isReply ? (byte)1 : 0);
-      } else if (message instanceof DiscoverHost) buffer.put((byte)1);
-      else if (message instanceof KeepAlive) buffer.put((byte)2);
-      else if (message instanceof RegisterUDP) buffer.put((byte)3).putInt(((RegisterUDP)message).connectionID);
-      else if (message instanceof RegisterTCP) buffer.put((byte)4).putInt(((RegisterTCP)message).connectionID);
+      if (message instanceof FrameworkMessage.Ping ping ) 
+        buffer.put((byte)0).putInt(ping.id).put(ping.isReply ? (byte)1 : 0);
+      else if (message instanceof FrameworkMessage.DiscoverHost) 
+        buffer.put((byte)1);
+      else if (message instanceof FrameworkMessage.KeepAlive) 
+        buffer.put((byte)2);
+      else if (message instanceof FrameworkMessage.RegisterUDP udp) 
+        buffer.put((byte)3).putInt(udp.connectionID);
+      else if (message instanceof FrameworkMessage.RegisterTCP tcp) 
+        buffer.put((byte)4).putInt(tcp.connectionID);
     }
 
     public FrameworkMessage readFramework(ByteBuffer buffer) {

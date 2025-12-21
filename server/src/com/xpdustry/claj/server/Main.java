@@ -1,27 +1,48 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.server;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-
-import com.xpdustry.claj.server.plugin.*;
-import com.xpdustry.claj.server.util.EventLoop;
-import com.xpdustry.claj.server.util.NetworkSpeed;
 
 import arc.net.ArcNet;
 import arc.util.ColorCodes;
 import arc.util.Log;
 import arc.util.Strings;
 
+import com.xpdustry.claj.server.plugin.Plugin;
+import com.xpdustry.claj.server.plugin.Plugins;
+import com.xpdustry.claj.server.util.EventLoop;
+import com.xpdustry.claj.server.util.NetworkSpeed;
+
 
 public class Main {
-  static final String[] tags = {"&lc&fb[D]&fr", "&lb&fb[I]&fr", "&ly&fb[W]&fr", "&lr&fb[E]", ""};
-  static final DateTimeFormatter dateformat = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
-  static final String logFormat = "&lk&fb[@]&fr @ @&fr";
+  public static final String[] tags = {"&lc&fb[D]&fr", "&lb&fb[I]&fr", "&ly&fb[W]&fr", "&lr&fb[E]", ""};
+  public static final DateTimeFormatter dateformat = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+  public static final String logFormat = "&lk&fb[@]&fr @ @&fr";
 
   public static void main(String[] args) {
     try {
-      // Ignore connection reset, closed and broken errors
+      // Sets loggers and formatter
       ArcNet.errorHandler = e -> { 
+        // Ignore connection reset, closed and broken errors
         if (Strings.getFinalCause(e) instanceof java.net.SocketException) return;
         String m = e.getMessage().toLowerCase();
         if (m.contains("reset") || m.contains("closed") || m.contains("broken pipe")) return;
@@ -82,7 +103,7 @@ public class Main {
         Log.info("@ plugins loaded.", ClajVars.plugins.orderedPlugins().size);
       int unsupported = ClajVars.plugins.list().count(l -> !l.enabled());
       if (unsupported > 0) {
-        Log.err("There were errors loading @ plugin(s):", unsupported);
+        Log.err("There were errors loading @ plugin" + (unsupported > 1 ? "s" : "") + ":", unsupported);
         for (Plugins.LoadedPlugin mod : ClajVars.plugins.list().select(l -> !l.enabled()))
             Log.err("- @ &ly(" + mod.state + ")", mod.meta.name);
       }
@@ -96,6 +117,7 @@ public class Main {
       // Start command handler
       ClajVars.control.start();
      
+      // Loading finished, fire an event
       ClajEvents.fire(new ClajEvents.ServerLoadedEvent());
       Log.info("Server loaded and hosted on port @. Type @ for help.", port, "'help'");
       

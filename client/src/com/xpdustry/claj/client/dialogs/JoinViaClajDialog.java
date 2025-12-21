@@ -1,12 +1,37 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.client.dialogs;
+
+import arc.Core;
+import arc.input.KeyCode;
+import arc.util.Time;
+
+import mindustry.Vars;
+import mindustry.gen.Icon;
+import mindustry.ui.dialogs.BaseDialog;
 
 import com.xpdustry.claj.client.Claj;
 import com.xpdustry.claj.client.ClajLink;
 
-import mindustry.Vars;
 
-
-public class JoinViaClajDialog extends mindustry.ui.dialogs.BaseDialog {
+public class JoinViaClajDialog extends BaseDialog {
   String lastLink = "claj://";
   boolean valid;
   String output;
@@ -15,7 +40,6 @@ public class JoinViaClajDialog extends mindustry.ui.dialogs.BaseDialog {
     super("@claj.join.name");
 
     cont.defaults().width(Vars.mobile ? 350f : 550f);
-    
     
     cont.labelWrap("@claj.join.note").padBottom(10f).left().row();
     cont.table(table -> {
@@ -29,14 +53,20 @@ public class JoinViaClajDialog extends mindustry.ui.dialogs.BaseDialog {
     buttons.button("@cancel", this::hide);
     buttons.button("@ok", this::joinRoom).disabled(button -> !valid || lastLink.isEmpty() || Vars.net.active());
     
+    addCloseListener();
+    keyDown(KeyCode.enter, () -> {
+      if (!valid || lastLink.isEmpty() || Vars.net.active()) return;
+      joinRoom();
+    });
+    
     //Adds the 'Join via CLaJ' button
     if (!Vars.steam && !Vars.mobile) {
-      Vars.ui.join.buttons.button("@claj.join.name", mindustry.gen.Icon.play, this::show).row();
-      Vars.ui.join.buttons.getCells().swap(Vars.ui.join.buttons.getCells().size-1/*6*/, 4);
+      Vars.ui.join.buttons.button("@claj.join.name", Icon.play, this::show);
+      Vars.ui.join.buttons.getCells().insert(4, Vars.ui.join.buttons.getCells().pop());
     } else {
       // adds in a new line for mobile players
       Vars.ui.join.buttons.row().add().growX().width(-1);
-      Vars.ui.join.buttons.button("@claj.join.name", mindustry.gen.Icon.play, this::show).row();
+      Vars.ui.join.buttons.button("@claj.join.name", Icon.play, this::show);
     }
   }
 
@@ -50,7 +80,7 @@ public class JoinViaClajDialog extends mindustry.ui.dialogs.BaseDialog {
     try { link = ClajLink.fromString(lastLink); } 
     catch (Exception e) {
       valid = false;
-      Vars.ui.showErrorMessage(arc.Core.bundle.get("claj.join.invalid") + ' ' + e.getLocalizedMessage());
+      Vars.ui.showErrorMessage(Core.bundle.get("claj.join.invalid") + ' ' + e.getLocalizedMessage());
       return;
     }
 
@@ -60,7 +90,7 @@ public class JoinViaClajDialog extends mindustry.ui.dialogs.BaseDialog {
       Vars.netClient.disconnectQuietly();
     });
     
-    arc.util.Time.runTask(2f, () -> 
+    Time.runTask(2f, () -> 
       Claj.joinRoom(link, () -> {
         Vars.ui.join.hide();
         hide();
@@ -78,7 +108,7 @@ public class JoinViaClajDialog extends mindustry.ui.dialogs.BaseDialog {
       return valid = true;
       
     } catch (Exception e) {
-      output = arc.Core.bundle.get("claj.join.invalid") + ' ' + e.getLocalizedMessage();
+      output = Core.bundle.get("claj.join.invalid") + ' ' + e.getLocalizedMessage();
       return valid = false;
     }
   }

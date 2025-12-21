@@ -1,5 +1,5 @@
 # Copy Link and Join (CLaJ)
-This system allow you to play with your friends just by creating a room, copy the link and send it to your friends. <br>
+system that allows you to play with your friends, just by creating a room, copying the link and sending it to your friends. <br>
 In fact it's pretty much the same thing as Hamachi, but in a Mindustry mod.
 
 This is a bundled, reworked and optimized version of the [CLaJ server](https://github.com/xzxADIxzx/Copy-Link-and-Join) and the [xzxADIxzx's Scheme-Size mod](https://github.com/xzxADIxzx/Scheme-Size) (with only the CLaJ feature).
@@ -13,7 +13,7 @@ This is a bundled, reworked and optimized version of the [CLaJ server](https://g
 Mindustry v8 has been released, and many changes have been made. Mods must now make changes to be compatible with this version. <br>
 The mod is not officially updated to this version, at this time, but it remains compatible with it.
 
-To install the mod for mindustry v8, just go to the mod browser, search for **'claj'**, then click ``View Releases``
+To install the mod for Mindustry v8, just go to the mod browser, search for **'claj'**, then click ``View Releases``
 and install the latest version named **'CLaJ for Mindustry v8'**. <br>
 Or you can download the mod file from the [releases section](https://github.com/Xpdustry/claj/releases) of pre-releases versions and place it into the mod folder of your game.
 
@@ -54,16 +54,28 @@ On the host player's side, it's server never receives packets from people connec
 ## How to build
 Pre-build releases can be found in the [releases section](https://github.com/Xpdustry/claj/releases), but if you want to build the project yourself, follow the steps above.
 
-To build the client version, simply run the command ``./gradlew client:build``. The jar file will be located in the root directory and named ``claj-client.jar``.
+To build the client version, simply run ``./gradlew client:build``. The jar file will be located in the root directory and named ``claj-client.jar``. <br>
+And to build the Mindustry v8 compatible version, run ``./gradlew client:buildV8``. The jar file will be located at the same place and named ``claj-client-v8.jar``.
 
-To build the server version, simply run the command ``./gradlew server:build``. The jar file will be located in the root directory and named ``claj-server.jar``.
+To build the server version, simply run ``./gradlew server:build``. The jar file will be located in the root directory and named ``claj-server.jar``.
 
-You can also run a test server by using the command ``./gradlew server:run``. It will be hosted on port ``7000``.
+You can also run a test server by running ``./gradlew server:run``. It will be hosted on port ``7000``.
 
 
 ## Modding
-The CLaJ server can be modded using plugins that are located in the ``plugins/`` directory. <br>
+The CLaJ server can be modded using plugins that are located in the ``plugins/`` directory, on your server. <br>
 They work the same way as [Mindustry mods](https://mindustrygame.github.io/wiki/modding/2-plugins/), but only handles Java ones (not json and js) and doesn't handles sprites, icon, bundles, and others things designed for client-side.
 
-The descriptor file can therefore only be ``plugin.json`` or ``plugin.hjson``, and some properties are removed, such as ``java`` because these can only be 	Java plugins, or ``texturescale`` because there is no texture handling on servers. <br>
-Supported plugin properties: ``name``, ``internalName``, ``displayName``, ``author``, ``description``, ``version``, ``repo``, ``main``, ``dependencies`` and ``softDependencies``.
+The plugin file can therefore only be ``plugin.json`` or ``plugin.hjson``, and some properties are removed. <br>
+Such as ``java`` because these can only be	Java plugins, or ``texturescale`` because there is no texture handling on servers.
+
+Supported plugin properties: 
+* ``name`` *[required]*: The plugin name, in lower case with no spaces (use '`-`'instead) and color formatting.
+* ``displayName`` *[optional]*: The plugin name used for logging, etc. In any case you want, with spaces, colors, etc.
+* ``author`` *[optional]*: The plugin's author(s).
+* ``description`` *[optional]*: A short description of what the plugin does.
+* ``version`` *[optional]*: The plugin's version.
+* ``repo`` *[optional]*: The plugin's GitHub repository, formatted like that: `username/projectname`.
+* ``main`` *[required]*: The plugin's fully qualified main class. Must extend ``com.xpdustry.claj.server.plugin.Plugin``.
+* ``dependencies`` *[optional]*: The list of required dependencies. ([Further information](https://mindustrygame.github.io/wiki/modding/1-modding/#dependencies))
+* ``softDependencies`` *[optional]*: The list of optional dependencies.

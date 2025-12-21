@@ -1,11 +1,13 @@
+
 package com.xpdustry.claj.server.plugin;
 
 import arc.struct.Seq;
+import arc.util.Threads;
 
 
 public class PluginClassLoader extends ClassLoader {
   private Seq<ClassLoader> children = new Seq<>();
-  private ThreadLocal<Boolean> inChild = arc.util.Threads.local(() -> Boolean.FALSE);
+  private ThreadLocal<Boolean> inChild = Threads.local(() -> Boolean.FALSE);
 
   public PluginClassLoader(ClassLoader parent) {
     super(parent);
@@ -24,10 +26,9 @@ public class PluginClassLoader extends ClassLoader {
     }
 
     ClassNotFoundException last = null;
-    int size = children.size;
 
     //if it doesn't exist in the main class loader, try all the children
-    for (int i=0; i<size; i++) {
+    for (int i=0, s=children.size; i<s; i++) {
       try {
         try {
           inChild.set(true);

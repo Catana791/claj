@@ -1,39 +1,35 @@
 import com.xpdustry.toxopid.spec.ModMetadata
 import com.xpdustry.toxopid.spec.ModPlatform
-//import com.xpdustry.toxopid.extension.anukeJitpack
-//import com.xpdustry.toxopid.extension.anukeXpdustry
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.regex.Pattern
 
 plugins {
   id "java"
   id "com.xpdustry.toxopid" version "4.1.2"
+  id "net.kyori.indra.publishing" version "3.1.3"
 }
 
 def metadata = ModMetadata.fromJson(file("mod.hjson"))
+group = "com.xpdustry"
+version = metadata.version
+description = metadata.description
 
 allprojects {
-  group = "com.xpdustry"
-  version = metadata.version
-  description = metadata.description
-  
   toxopid.compileVersion = "v${metadata.minGameVersion}"
   
   repositories {
     mavenCentral()
-    maven { url "https://maven.xpdustry.com/mindustry" }//anukeXpdustry()
-    maven { url "https://www.jitpack.io" }//anukeJitpack()
-  }
-  
-  dependencies {
-    // I realy want to use it....
-    //compileOnly "com.github.bsideup:jabel:1.0.1"
-    //annotationProcessor "com.github.bsideup:jabel:1.0.1"
+    maven { url "https://maven.xpdustry.com/mindustry" }
+    maven { url "https://www.jitpack.io" }
   }
 
+  // Force java 1.8
   tasks.withType(JavaCompile) {
     targetCompatibility = JavaVersion.VERSION_1_8
-    sourceCompatibility = JavaVersion.VERSION_1_8 //JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_1_8
     options.encoding = "UTF-8"
-    options.compilerArgs.addAll(['--release', '8'])
+    options.compilerArgs.addAll(["--release", "8"])
   }
 }
 
@@ -49,6 +45,7 @@ project(":client") {
   dependencies {
     compileOnly toxopid.dependencies.arcCore
     compileOnly toxopid.dependencies.mindustryCore
+    annotationProcessor "com.github.bsideup:jabel:1.0.1"
   }
 
   mergeJar {
@@ -70,15 +67,45 @@ project(":client") {
   }
 	
   // Includes android dex
-  build {
-    dependsOn mergeJar
+  build.dependsOn mergeJar
+
+  // Make compatible with Mindustry v8. Will just replace 'minGameVersion' in mod.hjson.
+  task buildV8(type: Jar, dependsOn: [mergeJar]) {
+    def modHjsonText = rootProject.file("mod.hjson").getText("UTF-8")
+    def mv8Match = (modHjsonText =~ /(?m)^\s*minGameVersionV8\s*:\s*"([^"]+)"/)
+    def v8MinGameVersion = mv8Match.find() ? mv8Match.group(1) : null
+    if (v8MinGameVersion == null) throw new Exception("mod.hjson is missing 'minGameVersionV8'.")
+
+    archiveFileName = "${metadata.name}-${project.name}-v8.jar"
+
+    // Start from the jar produced by mergeJar, but drop its mod.hjson entry.
+    from({ zipTree(mergeJar.archiveFile.get().asFile) }, { exclude "mod.hjson" })
+    
+    // Add a filtered mod.hjson at the root of the jar.
+    from(rootDir) {
+      include "mod.hjson"
+      //includeEmptyDirs = false
+      filter {
+        if (it == null) return null
+        if (it ==~ /^\s*minGameVersionV8\s*:.*$/) return null
+        if (it ==~ /^\s*minGameVersion\s*:.*$/) return "minGameVersion: \"${v8MinGameVersion}\""
+        return it
+      }
+    }
+
+    doLast {
+      copy {
+        from buildV8
+        into rootDir
+      }
+    }
   }
 }
 
 project(":server") {
   apply plugin: "java"
   apply plugin: "com.xpdustry.toxopid"
-  
+
   sourceSets.main.java.srcDirs = ["src"]
   sourceSets.main.resources.srcDirs = ["resources"]
   
@@ -88,12 +115,13 @@ project(":server") {
   dependencies {
     implementation toxopid.dependencies.arcCore
     implementation "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
-    //implementation toxopid.dependencies.arcHeadless
+    implementation toxopid.dependencies.arcHeadless
+    annotationProcessor "com.github.bsideup:jabel:1.0.1"
   }
   
   jar {
     archiveFileName = "${metadata.name}-${project.name}.jar"
-    manifest.attributes["Main-Class"] = project.ext.mainClassName
+    manifest.attributes["Main-Class"] = project.mainClassName
     manifest.attributes["Claj-Version"] = metadata.version
     
     // Includes arc libs
@@ -114,8 +142,64 @@ project(":server") {
     mainClass = project.mainClassName
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in
-    workingDir = "build"
+    workingDir = buildDir
     args 7000 // default port
     jvmArgs "-DClaj-Version=${metadata.version}" // claj version
   }
+}
+
+// Publishing
+signing {
+  def signingKey = findProperty("signingKey")
+  def signingPassword = findProperty("signingPassword")
+  useInMemoryPgpKeys(signingKey, signingPassword)
+}
+
+indra {
+  javaVersions {
+    target(8)
+    minimumToolchain(8)
+  }
+    
+  gpl3OnlyLicense()
+  publishReleasesTo("xpdustry", "https://maven.xpdustry.com/releases")
+
+  def repo = metadata.repository.split("/")
+  github(repo[0], repo[1]) {
+    ci(true)
+    issues(true)
+    scm(true)
+  }
+
+  configurePublications {
+    from components.java
+    artifact sourcesJar
+    artifact javadocJar
+  
+    pom {
+      organization {
+        name = "Xpdustry"
+        url = "https://www.xpdustry.com"
+      }
+
+      developers {
+        metadata.author.split(",").each { author ->
+          developer {
+            id = author.trim()
+            url = "https://github.com/${author.trim()}"
+          }
+        }
+      }
+    }
+  }
+}
+
+// I want these to only be included when publishing, not all the time...
+task javadocJar(type: Jar, dependsOn: 'javadoc') {
+  from javadoc.destinationDir
+  archiveClassifier = 'javadoc'
+}
+task sourcesJar(type: Jar, dependsOn: 'classes') {
+  from sourceSets.main.allSource
+  archiveClassifier = 'sources'
 }

@@ -1,3 +1,22 @@
+/**
+ * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * just by creating a room, copying the link and sending it to your friends.
+ * Copyright (c) 2025  Xpdustry
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.xpdustry.claj.client;
 
 import java.nio.ByteBuffer;
@@ -6,8 +25,10 @@ import java.util.concurrent.ExecutorService;
 import arc.Events;
 import arc.func.Cons;
 import arc.net.Client;
+import arc.net.NetSerializer;
 import arc.util.Threads;
 import arc.util.Time;
+import arc.util.Timer;
 
 import mindustry.Vars;
 import mindustry.game.EventType;
@@ -15,9 +36,10 @@ import mindustry.game.EventType;
 
 public class Claj {
   static {
-    // Pretty difficult to know when the player quits the game, there is no event...
+    // Pretty difficult to know when the player quits the game, 
+    // there is no event and StateChangeEvent is not reliable for that...
     Vars.ui.paused.hidden(() -> {
-      arc.util.Timer.schedule(() -> {
+      Timer.schedule(() -> {
         if (!Vars.net.active() || Vars.state.isMenu()) closeRoom();
       }, 1f);
     });
@@ -32,7 +54,7 @@ public class Claj {
   private static ClajProxy room;
   private static Client pinger;
   private static ExecutorService worker = Threads.unboundedExecutor("CLaJ Worker", 1);
-  private static arc.net.NetSerializer tmpSerializer;
+  private static NetSerializer tmpSerializer;
   private static ByteBuffer tmpBuffer = ByteBuffer.allocate(16);// we only need 10 bytes for the room join packet
   private static Thread roomThread, pingerThread;
 
@@ -44,7 +66,9 @@ public class Claj {
   public static void createRoom(String ip, int port, Cons<ClajLink> done, Cons<Throwable> failed, 
                                 Cons<ClajPackets.RoomClosedPacket.CloseReason> disconnected) {
     if (room == null || roomThread == null || !roomThread.isAlive()) 
-      roomThread = Threads.daemon("CLaJ Proxy", room = new ClajProxy());
+    // TODO: this probably fix the issue where the room keeps closing when switching of app on android
+    //  roomThread = Threads.daemon("CLaJ Proxy", room = new ClajProxy()); 
+      roomThread = Threads.thread("CLaJ Proxy", room = new ClajProxy());  
     
     worker.submit(() -> {
       try {
@@ -65,6 +89,7 @@ public class Claj {
       room.stop();
       try { roomThread.join(1000); }
       catch (Exception ignored) {}
+      roomThread.interrupt();
       try { room.dispose(); }
       catch (Exception ignored) {}
       roomThread = null;
@@ -120,6 +145,7 @@ public class Claj {
       pinger.stop();
       try { pingerThread.join(1000); }
       catch (Exception ignored) {}
+      pingerThread.interrupt();
       try { pinger.dispose(); }
       catch (Exception ignored) {}
       pingerThread = null;
