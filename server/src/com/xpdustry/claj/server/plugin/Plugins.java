@@ -19,6 +19,8 @@
 
 package com.xpdustry.claj.server.plugin;
 
+import java.util.Locale;
+
 import arc.files.Fi;
 import arc.files.ZipFi;
 import arc.func.Cons;
@@ -161,11 +163,17 @@ public class Plugins {
   private void updateDependencies(LoadedPlugin plugin) {
     plugin.dependencies.clear();
     plugin.missingDependencies.clear();
+    plugin.missingSoftDependencies.clear();
     plugin.dependencies = plugin.meta.dependencies.map(this::locatePlugin);
+    plugin.softDependencies = plugin.meta.softDependencies.map(this::locatePlugin);
 
     for (int i=0; i<plugin.dependencies.size; i++) {
-      if (plugin.dependencies.get(i) == null)
+      if(plugin.dependencies.get(i) == null)
         plugin.missingDependencies.add(plugin.meta.dependencies.get(i));
+    }
+    for (int i=0; i<plugin.softDependencies.size; i++) {
+      if (plugin.softDependencies.get(i) == null) 
+        plugin.missingSoftDependencies.add(plugin.meta.softDependencies.get(i));
     }
   }
 
@@ -301,12 +309,12 @@ public class Plugins {
     PluginMeta meta = findMeta(zip);
     if (meta == null) {
       Log.warn("Plugin @ doesn't have a 'plugin.[h]json' file, skipping.", zip);
-      throw new ModLoadException("Invalid file: No plugin.json found.");
+      throw new PluginLoadException("Invalid file: No plugin.json found.");
     }
 
     String camelized = meta.name.replace(" ", "");
-    String mainClass = meta.main == null ? camelized.toLowerCase() + "." + camelized + "Plugin" : meta.main;
-    String baseName = meta.name.toLowerCase().replace(" ", "-");
+    String mainClass = meta.main == null ? camelized.toLowerCase(Locale.ROOT) + "." + camelized + "Plugin" : meta.main;
+    String baseName = meta.name.toLowerCase(Locale.ROOT).replace(" ", "-");
 
     LoadedPlugin other = plugins.find(m -> m.name.equals(baseName));
 
@@ -322,7 +330,7 @@ public class Plugins {
         //unload
         plugins.remove(other);
         
-      } else throw new ModLoadException("A plugin with the name '" + baseName + "' is already imported.");
+      } else throw new PluginLoadException("A plugin with the name '" + baseName + "' is already imported.");
     }
 
     ClassLoader loader = null;
@@ -341,6 +349,16 @@ public class Plugins {
       mainLoader.addChild(loader);
       Class<?> main = Class.forName(mainClass, true, loader);
 
+      //detect plugins that incorrectly package CLaJ in the jar
+      if (main.getSuperclass().getName().equals(Plugin.class.getName()) &&
+          main.getSuperclass().getClassLoader() != Plugin.class.getClassLoader()) 
+        throw new PluginLoadException(
+          "This plugin has loaded CLaJ dependencies from its own class loader. " +
+          "You are incorrectly including CLaJ dependencies in the mod JAR! " +
+          "Make sure CLaJ is declared as `compileOnly` in your `build.gradle`, " + 
+          "and the JAR is created with `runtimeClasspath`."
+        );
+      
       metas.put(main, meta);
       mainMod = (Plugin)main.getDeclaredConstructor().newInstance();
     } else mainMod = null;
@@ -367,10 +385,14 @@ public class Plugins {
     public final String name;
     /** This plugin's metadata. */
     public final PluginMeta meta;
-    /** This plugin's dependencies as already-loaded plugins. */
+    /** This plugin dependencies as already-loaded plugins. */
     public Seq<LoadedPlugin> dependencies = new Seq<>();
-    /** All missing dependencies of this plugin as strings. */
+    /** This plugin soft dependencies as already-loaded plugins. */
+    public Seq<LoadedPlugin> softDependencies = new Seq<>();
+    /** All missing required dependencies of this plugin as strings. */
     public Seq<String> missingDependencies = new Seq<>();
+    /** All missing soft dependencies of this plugin as strings. */
+    public Seq<String> missingSoftDependencies = new Seq<>();
     /** Current state of this plugin. */
     public PluginState state = PluginState.enabled;
     /** Class loader for JAR plugins. */
@@ -383,11 +405,6 @@ public class Plugins {
       this.main = main;
       this.meta = meta;
       this.name = meta.name;
-    }
-
-    @Nullable
-    public String getRepo() {
-      return meta.repo;
     }
 
     public boolean enabled() {
@@ -420,7 +437,7 @@ public class Plugins {
 
     /** Removes all colors */
     public void cleanup() {
-      if (name != null) name = Strings.stripColors(name).toLowerCase().replace(" ", "-");
+      if (name != null) name = Strings.stripColors(name).toLowerCase(Locale.ROOT).replace(" ", "-");
       if (displayName != null) displayName = Strings.stripColors(displayName);
       if (displayName == null && name != null) displayName = Strings.capitalize(name);
       if (author != null) author = Strings.stripColors(author);
@@ -445,8 +462,8 @@ public class Plugins {
 
   
   @SuppressWarnings("serial")
-  public static class ModLoadException extends RuntimeException {
-    public ModLoadException(String message) { 
+  public static class PluginLoadException extends RuntimeException {
+    public PluginLoadException(String message) { 
       super(message); 
     }
   }

@@ -33,6 +33,9 @@ import arc.util.Timer;
 import mindustry.Vars;
 import mindustry.game.EventType;
 
+import com.xpdustry.claj.common.ClajPackets.CloseReason;
+import com.xpdustry.claj.common.packets.RoomJoinPacket;
+
 
 public class Claj {
   static {
@@ -54,7 +57,7 @@ public class Claj {
   private static ClajProxy room;
   private static Client pinger;
   private static ExecutorService worker = Threads.unboundedExecutor("CLaJ Worker", 1);
-  private static NetSerializer tmpSerializer;
+  private static NetSerializer tmpSerializer = new ClajProxy.Serializer();
   private static ByteBuffer tmpBuffer = ByteBuffer.allocate(16);// we only need 10 bytes for the room join packet
   private static Thread roomThread, pingerThread;
 
@@ -64,37 +67,42 @@ public class Claj {
 
   /** @apiNote async operation */
   public static void createRoom(String ip, int port, Cons<ClajLink> done, Cons<Throwable> failed, 
-                                Cons<ClajPackets.RoomClosedPacket.CloseReason> disconnected) {
+                                Cons<CloseReason> disconnected) {
     if (room == null || roomThread == null || !roomThread.isAlive()) 
     // TODO: this probably fix the issue where the room keeps closing when switching of app on android
-    //  roomThread = Threads.daemon("CLaJ Proxy", room = new ClajProxy()); 
-      roomThread = Threads.thread("CLaJ Proxy", room = new ClajProxy());  
+      roomThread = Threads./*deamon*/thread("CLaJ Proxy", room = new ClajProxy());  
     
     worker.submit(() -> {
-      try {
-        if (room.isConnected()) throw new IllegalStateException("Room is already created, please close it before.");
-        room.connect(ip, port, id -> done.get(new ClajLink(ip, port, id)), disconnected);
-      } catch (Throwable e) { failed.get(e); }  
+      synchronized (roomThread) {
+        try {
+          if (room.isConnected()) 
+            throw new IllegalStateException("Room is already created, please close it before.");
+          room.connect(ip, port, id -> done.get(new ClajLink(ip, port, id)), disconnected);
+        } catch (Throwable e) { failed.get(e); }  
+      }
     });
+  }
+  
+  public static ClajProxy getRoom() {
+    return room;
   }
   
   /** Just close the room connection, doesn't delete it */
   public static void closeRoom() {
-    if (room != null) room.closeRoom();
+    if (room != null) room.close();
   }
   
   /** Delete properly the room */
   public static void disposeRoom() {
-    if (room != null) {
-      room.stop();
-      try { roomThread.join(1000); }
-      catch (Exception ignored) {}
-      roomThread.interrupt();
-      try { room.dispose(); }
-      catch (Exception ignored) {}
-      roomThread = null;
-      room = null;
-    }
+    if (room == null) return;
+    room.stop();
+    try { roomThread.join(1000); }
+    catch (Exception ignored) {}
+    roomThread.interrupt();
+    try { room.dispose(); }
+    catch (Exception ignored) {}
+    roomThread = null;
+    room = null;
   }
 
   public static void joinRoom(ClajLink link, Runnable success) {
@@ -106,23 +114,21 @@ public class Claj {
     Vars.netClient.beginConnecting();
     Vars.net.connect(link.host, link.port, () -> {
       if (!Vars.net.client()) return;
-      if (tmpSerializer == null) tmpSerializer = new ClajProxy.Serializer();
       
       // We need to serialize the packet manually
       tmpBuffer.clear();
-      ClajPackets.RoomJoinPacket p = new ClajPackets.RoomJoinPacket();
+      RoomJoinPacket p = new RoomJoinPacket();
       p.roomId = link.roomId;
       tmpSerializer.write(tmpBuffer, p);
       tmpBuffer.limit(tmpBuffer.position()).position(0);
       Vars.net.send(tmpBuffer, true);
       
-      success.run();
+      if (success != null) success.run();
     });
   }
 
   /** @apiNote async operation but blocking new tasks if a ping is already in progress */
   public static void pingHost(String ip, int port, Cons<Long> success, Cons<Exception> failed) {
-    if (tmpSerializer == null) tmpSerializer = new ClajProxy.Serializer();
     if (pinger == null || pingerThread == null || !pingerThread.isAlive()) 
       pingerThread = Threads.daemon("CLaJ Pinger", pinger = new Client(8192, 8192, tmpSerializer));
 
@@ -141,15 +147,14 @@ public class Claj {
   }
   
   public static void disposePinger() {
-    if (pinger != null) {
-      pinger.stop();
-      try { pingerThread.join(1000); }
-      catch (Exception ignored) {}
-      pingerThread.interrupt();
-      try { pinger.dispose(); }
-      catch (Exception ignored) {}
-      pingerThread = null;
-      pinger = null;
-    }
+    if (pinger == null) return;
+    pinger.stop();
+    try { pingerThread.join(1000); }
+    catch (Exception ignored) {}
+    pingerThread.interrupt();
+    try { pinger.dispose(); }
+    catch (Exception ignored) {}
+    pingerThread = null;
+    pinger = null;
   }
 }

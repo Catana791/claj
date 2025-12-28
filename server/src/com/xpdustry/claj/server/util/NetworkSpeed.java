@@ -40,7 +40,9 @@ public class NetworkSpeed {
   public void addDownloadMark(int count) {
     if (Time.timeSinceMillis(lastDownload) >= 1000) {
       lastDownload = Time.millis();
-      download.add(downloadAccum);
+      synchronized (download) {
+        download.add(downloadAccum);
+      }
       downloadAccum = 0;
     }
     downloadAccum += count;
@@ -53,7 +55,9 @@ public class NetworkSpeed {
   public void addUploadMark(int count) {
     if (Time.timeSinceMillis(lastUpload) >= 1000) {
       lastUpload = Time.millis();
-      upload.add(uploadAccum);
+      synchronized (upload) {
+        upload.add(uploadAccum);
+      }
       uploadAccum = 0;
     }
     uploadAccum += count;
@@ -61,11 +65,15 @@ public class NetworkSpeed {
   
   /** Number of things per second. E.g. bytes per seconds */
   public float downloadSpeed() {
-    return download.mean();
+    synchronized (download) {
+      return download.mean();
+    }
   }
   
   /** Number of things per second. E.g. bytes per seconds */
   public float uploadSpeed() {
-    return upload.mean();
+    synchronized (upload) {
+      return upload.mean();
+    }
   }
 }

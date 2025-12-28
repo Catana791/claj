@@ -28,24 +28,24 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Client Artifact
-        run: gradle client:build
+      - name: Build Client Artifacts
+        run: gradle client:build client:buildV8
 
       - name: Build Server Artifact
         run: gradle server:build
  
-      - name: Upload Client Artifact to Actions
+      - name: Upload Client Artifacts to Actions
         uses: actions/upload-artifact@v4
         with:
           name: "${{ github.event.repository.name }}-client"
-          path: build/libs/${{ github.event.repository.name }}-client.jar
+          path: client/build/libs/${{ github.event.repository.name }}-client*.jar
           if-no-files-found: error
 
       - name: Upload Server Artifact to Actions
         uses: actions/upload-artifact@v4
         with:
           name: "${{ github.event.repository.name }}-server"
-          path: build/libs/${{ github.event.repository.name }}-server.jar
+          path: server/build/libs/${{ github.event.repository.name }}-server.jar
           if-no-files-found: error
 
       - name: Publish Artifacts

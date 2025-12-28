@@ -61,6 +61,8 @@ public class ClajConfig {
   }
 
   public static void save() {
+    if (settings == null) return;
+    
     settings.put("debug", debug);
     settings.put("spam-limit", spamLimit);
     settings.put("warn-deprecated", warnDeprecated);

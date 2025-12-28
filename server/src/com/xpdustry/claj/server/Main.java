@@ -19,80 +19,31 @@
 
 package com.xpdustry.claj.server;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.jar.Manifest;
 
-import arc.net.ArcNet;
-import arc.util.ColorCodes;
+import arc.Events;
 import arc.util.Log;
-import arc.util.Strings;
 
 import com.xpdustry.claj.server.plugin.Plugin;
 import com.xpdustry.claj.server.plugin.Plugins;
-import com.xpdustry.claj.server.util.EventLoop;
-import com.xpdustry.claj.server.util.NetworkSpeed;
 
 
 public class Main {
-  public static final String[] tags = {"&lc&fb[D]&fr", "&lb&fb[I]&fr", "&ly&fb[W]&fr", "&lr&fb[E]", ""};
-  public static final DateTimeFormatter dateformat = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
-  public static final String logFormat = "&lk&fb[@]&fr @ @&fr";
-
   public static void main(String[] args) {
+    // Set loggers and formatter
+    ClajVars.initLogger();
+    // Load environment things
+    if (!loadEnv(args)) System.exit(1);
+    // Init server
+    init();
+    // Start server
+    run();
+  }
+  
+  public static void init() {
     try {
-      // Sets loggers and formatter
-      ArcNet.errorHandler = e -> { 
-        // Ignore connection reset, closed and broken errors
-        if (Strings.getFinalCause(e) instanceof java.net.SocketException) return;
-        String m = e.getMessage().toLowerCase();
-        if (m.contains("reset") || m.contains("closed") || m.contains("broken pipe")) return;
-        Log.err(e); 
-      };
-      Log.logger = (level, text) -> {
-        for (String line : text.split("\n")) {
-          //err has red text instead of reset.
-          if(level == Log.LogLevel.err) line = line.replace(ColorCodes.reset, ColorCodes.lightRed + ColorCodes.bold);
-    
-          line = Log.format(Strings.format(logFormat, dateformat.format(LocalDateTime.now()), tags[level.ordinal()], line));
-          System.out.println(line);          
-        }
-      };
-      Log.formatter = (text, useColors, arg) -> {
-        text = Strings.format(text.replace("@", "&fb&lb@&fr"), arg);
-        return useColors ? Log.addColors(text) : Log.removeColors(text);
-      };  
-
-      // Parse server port
-      if (args.length == 0) throw new RuntimeException("Need a port as an argument!");
-      int port = Integer.parseInt(args[0]);
-      if (port < 0 || port > 0xffff) throw new RuntimeException("Invalid port range");
-      
-      // Get the server version from manifest or command line property
-      try { 
-        ClajVars.serverVersion = new java.util.jar.Manifest(Main.class.getResourceAsStream("/META-INF/MANIFEST.MF"))
-                                         .getMainAttributes().getValue("Claj-Version");
-      } catch (Exception e) {
-        throw new RuntimeException("Unable to locate manifest properties.", e);
-      }
-      // Fallback to java property
-      if (ClajVars.serverVersion == null) ClajVars.serverVersion = System.getProperty("Claj-Version");
-      if (ClajVars.serverVersion == null) throw new RuntimeException("The 'Claj-Version' property is missing in the jar manifest.");
-      
-      // Init event loop
-      ClajVars.loop = new EventLoop();
-      ClajVars.loop.start();
-      
-      // Load settings and init server
-      ClajConfig.load();
-      Log.level = ClajConfig.debug ? Log.LogLevel.debug : Log.LogLevel.info; // set log level
-      ClajVars.networkSpeed = new NetworkSpeed(8);
-      ClajVars.relay = new ClajRelay(ClajVars.networkSpeed);      
-      ClajVars.control = new ClajControl();
-
-      // Load plugins
-      ClajVars.plugins = new Plugins();
-      ClajVars.pluginsDirectory.mkdirs();
-      ClajVars.plugins.load();
+      // Init vars
+      ClajVars.init();
 
       // Register commands
       ClajVars.control.registerCommands();
@@ -110,32 +61,72 @@ public class Main {
 
       // Finish plugins loading
       ClajVars.plugins.eachClass(Plugin::init);
-      
       // Bind port
-      ClajVars.relay.bind(port, port);
-      
+      ClajVars.relay.bind(ClajVars.port, ClajVars.port);
       // Start command handler
       ClajVars.control.start();
-     
+      
       // Loading finished, fire an event
-      ClajEvents.fire(new ClajEvents.ServerLoadedEvent());
-      Log.info("Server loaded and hosted on port @. Type @ for help.", port, "'help'");
+      Events.fire(new ClajEvents.ServerLoadedEvent());
+      Log.info("Server loaded and hosted on port @. Type @ for help.", ClajVars.port, "'help'");
       
     } catch (Throwable t) {
       Log.err("Failed to load server", t);
       ClajVars.loop.stop(true);
       System.exit(1);
-      return;
     }
-
-    // Start the server
-    try { ClajVars.relay.run(); } 
-    catch (Throwable t) { Log.err(t); } 
-    finally {
+  }
+  
+  public static void run() {
+    if (ClajVars.relay == null) throw new IllegalStateException("server not initialized");
+    
+    boolean error = false;
+    try { 
+      ClajVars.relay.run(); 
+    } catch (Throwable t) { 
+      Log.err(t); 
+      error = true;
+    } finally {
       ClajVars.loop.stop(true);
       ClajVars.relay.close();
       ClajConfig.save();
-      Log.info("Server closed.");
+      if (error) {
+        Log.err("Server closed with error(s).");
+        System.exit(1);
+      } else Log.info("Server closed.");
     }
+  }
+  
+  public static boolean loadEnv(String[] args) {
+    // Parse server port
+    if (args.length == 0) {
+      Log.err("Need a port as an argument!");
+      return false;
+    }
+    int port = Integer.parseInt(args[0]);
+    if (port < 0 || port > 0xffff) {
+      Log.err("Invalid port range");
+      return false;
+    }
+    ClajVars.port = port;
+    
+    // Get the server version from manifest or command line property
+    String version = null;
+    try { 
+      version = new Manifest(Main.class.getResourceAsStream("/META-INF/MANIFEST.MF"))
+                                       .getMainAttributes().getValue("Claj-Version");
+    } catch (Exception e) {
+      Log.err("Unable to locate manifest properties", e);
+      return false;
+    }
+    // Fallback to java property
+    if (version == null) version = System.getProperty("Claj-Version");
+    if (version == null) {
+      Log.err("The 'Claj-Version' property is missing in the jar manifest.");
+      return false;
+    }
+    
+    ClajVars.version = version;
+    return true;
   }
 }

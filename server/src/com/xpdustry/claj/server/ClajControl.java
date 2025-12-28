@@ -28,12 +28,15 @@ import arc.util.CommandHandler;
 import arc.util.Log;
 import arc.util.OS;
 import arc.util.Threads;
+import arc.util.CommandHandler.ResponseType;
 
+import com.xpdustry.claj.common.util.Strings;
 import com.xpdustry.claj.server.plugin.Plugins;
-import com.xpdustry.claj.server.util.Strings;
 
 
 public class ClajControl extends CommandHandler {
+  private String suggested;
+  
   public ClajControl() {
     super("");
   }
@@ -53,25 +56,32 @@ public class ClajControl extends CommandHandler {
   public void handleCommand(String line){
     CommandResponse response = handleMessage(line);
 
-    if (response.type == ResponseType.unknownCommand) {
-      int minDst = 0;
-      Command closest = null;
-
-      for (Command command : getCommandList()) {
-        int dst = Strings.levenshtein(command.text, response.runCommand);
-        if (dst < 3 && (closest == null || dst < minDst)) {
-          minDst = dst;
-          closest = command;
+    switch (response.type) {
+      case unknownCommand:
+        int minDst = 0;
+        Command closest = null;
+  
+        for (Command command : getCommandList()) {
+          int dst = Strings.levenshtein(command.text, response.runCommand);
+          if (dst < 3 && (closest == null || dst < minDst)) {
+            minDst = dst;
+            closest = command;
+          }
         }
-      }
-
-      if (closest != null) Log.err("Command not found. Did you mean \"" + closest.text + "\"?");
-      else Log.err("Invalid command. Type 'help' for help.");
+  
+        if (closest != null) {
+          Log.err("Command not found. Did you mean \"@\"?", closest.text);
+          suggested = line.replace(response.runCommand, closest.text);
+        } else Log.err("Invalid command. Type @ for help.", "'help'"); 
+        break;
+      case fewArguments:
+      case manyArguments:
+        Log.err("Too " + response.type.name().replace("Arguments", "") + " command arguments. Usage: @", 
+                response.command.text + " " + response.command.paramText);
+        break;
+      case valid: suggested = null;
+      default: break;
     }
-    else if(response.type == ResponseType.fewArguments)
-      Log.err("Too few command arguments. Usage: " + response.command.text + " " + response.command.paramText);
-    else if(response.type == ResponseType.manyArguments)
-      Log.err("Too many command arguments. Usage: " + response.command.text + " " + response.command.paramText);
   }
 
 
@@ -83,17 +93,22 @@ public class ClajControl extends CommandHandler {
                  "&fr - &lw" + c.description));
     });
     
-    register("version", "Displays server version info.", arg -> {
-      Log.info("CLaJ Version: @", ClajVars.serverVersion);
+    register("version", "Displays server version info.", args -> {
+      Log.info("CLaJ Version: @", ClajVars.version);
       Log.info("Java Version: @", OS.javaVersion);
     });
     
     // Why i added this command? it's useless for this kind of project
-    register("gc", "Trigger a garbage collection.", arg -> {
+    register("gc", "Trigger a garbage collection.", args -> {
       int pre = (int)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024);
       System.gc();
       int post = (int)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024);
       Log.info("@ MB collected. Memory usage now at @ MB.", pre - post, post);
+    });
+    
+    register("yes", "Run the last suggested incorrect command.", args -> {
+      if(suggested != null) handleCommand(suggested);
+      else Log.err("There is nothing to say yes to.");
     });
     
     register("exit", "Stop the server.", args -> {
@@ -245,14 +260,12 @@ public class ClajControl extends CommandHandler {
         Log.info("Message sent to all rooms.");
         return;
       }
-      
-      try {
-        ClajRoom room = ClajVars.relay.get(Strings.base64ToLong(args[0]));
-        if (room != null) {
-          room.message(args[1]);
-          Log.info("Message sent to room @.", args[0]);
-        } else Log.err("Room @ not found.", args[0]);
-      } catch (Exception ignored) { Log.err("Room @ not found.", args[0]); }      
+
+      ClajRoom room = ClajVars.relay.get(args[0]);
+      if (room != null) {
+        room.message(args[1]);
+        Log.info("Message sent to room @.", args[0]);
+      } else Log.err("Room @ not found.", args[0]);     
     });
     
     register("alert", "<room|all> <text...>", "Send a popup message to the host of a room or all rooms.", args -> {
@@ -262,13 +275,11 @@ public class ClajControl extends CommandHandler {
         return;
       }
       
-      try {
-        ClajRoom room = ClajVars.relay.get(Strings.base64ToLong(args[0]));
-        if (room != null) {
-          room.popup(args[1]);
-          Log.info("Popup sent to the host of room @.", args[0]);
-        } else Log.err("Room @ not found.", args[0]);
-      } catch (Exception ignored) { Log.err("Room @ not found.", args[0]); }   
+      ClajRoom room = ClajVars.relay.get(args[0]);
+      if (room != null) {
+        room.popup(args[1]);
+        Log.info("Popup sent to the host of room @.", args[0]);
+      } else Log.err("Room @ not found.", args[0]);  
     });
   }
 }

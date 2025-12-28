@@ -19,30 +19,30 @@
 
 package com.xpdustry.claj.server;
 
-import java.nio.ByteBuffer;
-
 import arc.net.Connection;
 import arc.net.DcReason;
 import arc.net.NetListener;
 import arc.struct.IntMap;
 
+import com.xpdustry.claj.common.ClajPackets.*;
+import com.xpdustry.claj.common.packets.*;
+import com.xpdustry.claj.common.util.Strings;
 import com.xpdustry.claj.server.util.NetworkSpeed;
-import com.xpdustry.claj.server.util.Strings;
 
 
 public class ClajRoom implements NetListener {
   private boolean closed;
   
-  /** The room id */
+  /** The room id. */
   public final long id;
   /** 
-   * The room id encoded in an url-safe base64 string
+   * The room id encoded in an url-safe base64 string.
    * @see com.xpdustry.claj.client.ClajLink
    */
   public final String idString;
-  /** The host connection of this room */
+  /** The host connection of this room. */
   public final Connection host;
-  /** Using IntMap instead of Seq for faster search */
+  /** Using IntMap instead of Seq for faster search. */
   public final IntMap<Connection> clients = new IntMap<>();
   /** For debugging, to know how many packets were transferred from a client to a host, and vice versa. */
   public final NetworkSpeed transferredPackets = new NetworkSpeed(8);
@@ -59,7 +59,7 @@ public class ClajRoom implements NetListener {
     if (closed) return;
     
     // Assume the host is still connected
-    ClajPackets.ConnectionJoinPacket p = new ClajPackets.ConnectionJoinPacket();
+    ConnectionJoinPacket p = new ConnectionJoinPacket();
     p.conID = connection.getID();
     p.roomId = id;
     host.sendTCP(p);
@@ -67,7 +67,7 @@ public class ClajRoom implements NetListener {
     clients.put(connection.getID(), connection);
   }
 
-  /** Alert the host that a client disconnected */
+  /** Alert the host that a client disconnected. This doesn't close the connection. */
   @Override
   public void disconnected(Connection connection, DcReason reason) {
     if (closed) return;
@@ -77,7 +77,7 @@ public class ClajRoom implements NetListener {
       return;
       
     } else if (host.isConnected()) {
-      ClajPackets.ConnectionClosedPacket p = new ClajPackets.ConnectionClosedPacket();
+      ConnectionClosedPacket p = new ConnectionClosedPacket();
       p.conID = connection.getID();
       p.reason = reason;
       host.sendTCP(p);
@@ -106,23 +106,19 @@ public class ClajRoom implements NetListener {
     if (connection == host) {
       // Only claj packets are allowed in the host's connection
       // and can only be ConnectionPacketWrapPacket at this point.
-      if (!(object instanceof ClajPackets.ConnectionPacketWrapPacket wrap)) return;
+      if (!(object instanceof ConnectionPacketWrapPacket wrap)) return;
 
       int conID = wrap.conID;
       Connection con = clients.get(conID);
       
       if (con != null && con.isConnected()) {
-        boolean tcp = wrap.isTCP;
-        ByteBuffer o = wrap.buffer;
-        
-        if (tcp) con.sendTCP(o);
-        else con.sendUDP(o);
-        
+        if (wrap.isTCP) con.sendTCP(wrap.raw);
+        else con.sendUDP(wrap.raw);
         transferredPackets.addUploadMark();
 
       // Notify that this connection doesn't exist, this case normally never happen
       } else if (host.isConnected()) { 
-        ClajPackets.ConnectionClosedPacket p = new ClajPackets.ConnectionClosedPacket();
+        ConnectionClosedPacket p = new ConnectionClosedPacket();
         p.conID = conID;
         p.reason = DcReason.error;
         host.sendTCP(p);
@@ -132,13 +128,12 @@ public class ClajRoom implements NetListener {
       // Only raw buffers are allowed here.
       // We never send claj packets to anyone other than the room host, framework packets are ignored
       // and mindustry packets are saved as raw buffer.
-      if (!(object instanceof ByteBuffer buffer)) return;
+      if (!(object instanceof RawPacket raw)) return;
       
-      ClajPackets.ConnectionPacketWrapPacket p = new ClajPackets.ConnectionPacketWrapPacket();
+      ConnectionPacketWrapPacket p = new ConnectionPacketWrapPacket();
       p.conID = connection.getID();
-      p.buffer = buffer;
+      p.raw = raw;
       host.sendTCP(p);
-      
       transferredPackets.addDownloadMark();
     }
   }
@@ -152,7 +147,7 @@ public class ClajRoom implements NetListener {
       // Ignore if this is the room host
       
     } else if (host.isConnected() && clients.containsKey(connection.getID())) {
-      ClajPackets.ConnectionIdlingPacket p = new ClajPackets.ConnectionIdlingPacket();
+      ConnectionIdlingPacket p = new ConnectionIdlingPacket();
       p.conID = connection.getID();
       host.sendTCP(p);
     }
@@ -163,7 +158,7 @@ public class ClajRoom implements NetListener {
     if (closed) return;
     
     // Assume the host is still connected
-    ClajPackets.RoomLinkPacket p = new ClajPackets.RoomLinkPacket();
+    RoomLinkPacket p = new RoomLinkPacket();
     p.roomId = id;
     host.sendTCP(p);
   }
@@ -174,19 +169,19 @@ public class ClajRoom implements NetListener {
   }
   
   public void close() {
-    close(ClajPackets.RoomClosedPacket.CloseReason.closed);
+    close(CloseReason.closed);
   }
   
   /** 
    * Closes the room and disconnects the host and all clients. 
    * The room object cannot be used anymore after this.
    */
-  public void close(ClajPackets.RoomClosedPacket.CloseReason reason) {
+  public void close(CloseReason reason) {
     if (closed) return;
     closed = true; // close before kicking connections, to avoid receiving events
     
     // Alert the close reason to the host
-    ClajPackets.RoomClosedPacket p = new ClajPackets.RoomClosedPacket();
+    RoomClosedPacket p = new RoomClosedPacket();
     p.reason = reason;
     host.sendTCP(p);
     
@@ -207,16 +202,16 @@ public class ClajRoom implements NetListener {
     if (closed) return;
     
     // Just send to host, it will re-send it properly to all clients
-    ClajPackets.ClajMessagePacket p = new ClajPackets.ClajMessagePacket();
+    ClajTextMessagePacket p = new ClajTextMessagePacket();
     p.message = text;
     host.sendTCP(p);
   }
   
   /** Send a message the host and clients. Will be translated by the room host. */
-  public void message(ClajPackets.ClajMessage2Packet.MessageType message) {
+  public void message(MessageType message) {
     if (closed) return;
     
-    ClajPackets.ClajMessage2Packet p = new ClajPackets.ClajMessage2Packet();
+    ClajMessagePacket p = new ClajMessagePacket();
     p.message = message;
     host.sendTCP(p);
   }
@@ -225,7 +220,7 @@ public class ClajRoom implements NetListener {
   public void popup(String text) {
     if (closed) return;
     
-    ClajPackets.ClajPopupPacket p = new ClajPackets.ClajPopupPacket();
+    ClajPopupPacket p = new ClajPopupPacket();
     p.message = text;
     host.sendTCP(p);
   }

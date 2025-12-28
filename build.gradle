@@ -16,6 +16,11 @@ version = metadata.version
 description = metadata.description
 
 allprojects {
+  apply plugin: "java"
+  apply plugin: "com.xpdustry.toxopid"
+  
+  sourceSets.main.java.srcDirs = ["src"]
+  sourceSets.main.resources.srcDirs = ["resources"]
   toxopid.compileVersion = "v${metadata.minGameVersion}"
   
   repositories {
@@ -31,25 +36,35 @@ allprojects {
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(["--release", "8"])
   }
+  
+  dependencies {
+    annotationProcessor "com.github.bsideup:jabel:1.0.1"
+  }
+}
+
+project(":common") {
+  dependencies {
+    compileOnly toxopid.dependencies.arcCore
+    compileOnly "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
+  }
 }
 
 project(":client") {
-  apply plugin: "java"
-  apply plugin: "com.xpdustry.toxopid"
-
-  sourceSets.main.java.srcDirs = ["src"]
-  sourceSets.main.resources.srcDirs = ["resources"]
-  
   toxopid.platforms = [ModPlatform.DESKTOP, ModPlatform.ANDROID]
   
   dependencies {
+    implementation project(":common")
     compileOnly toxopid.dependencies.arcCore
     compileOnly toxopid.dependencies.mindustryCore
-    annotationProcessor "com.github.bsideup:jabel:1.0.1"
   }
 
   mergeJar {
     archiveFileName = "${metadata.name}-${project.name}.jar"
+   
+    // Includes common
+    from {
+      configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
    
     // Includes mod json and icon
     from(rootDir) {
@@ -103,20 +118,14 @@ project(":client") {
 }
 
 project(":server") {
-  apply plugin: "java"
-  apply plugin: "com.xpdustry.toxopid"
-
-  sourceSets.main.java.srcDirs = ["src"]
-  sourceSets.main.resources.srcDirs = ["resources"]
-  
   project.ext.mainClassName = "com.xpdustry.claj.server.Main"
   toxopid.platforms = [ModPlatform.SERVER]
 
   dependencies {
+    implementation project(":common")
     implementation toxopid.dependencies.arcCore
     implementation "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
     implementation toxopid.dependencies.arcHeadless
-    annotationProcessor "com.github.bsideup:jabel:1.0.1"
   }
   
   jar {
@@ -136,6 +145,8 @@ project(":server") {
         into rootDir
       }
     }
+    
+    //exclude "arc/assets/**", "arc/audio/**", "arc/input/**", "arc/scene/**", "arc/util/noise/**", "arc/util/viewport/**"
   }
   
   task run(dependsOn: classes, type: JavaExec) {
@@ -147,6 +158,9 @@ project(":server") {
     jvmArgs "-DClaj-Version=${metadata.version}" // claj version
   }
 }
+
+task buildAll(type: Jar, dependsOn: ["client:build", "client:buildV8", "server:build"]) {}
+
 
 // Publishing
 signing {

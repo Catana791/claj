@@ -1,15 +1,19 @@
-package com.xpdustry.claj.server.util;
+package com.xpdustry.claj.common.util;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 import arc.func.Intf;
 import arc.net.Connection;
+import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 import arc.util.serialization.Base64Coder;
 import arc.util.serialization.JsonValue;
 import arc.util.serialization.JsonWriter.OutputType;
+import arc.util.serialization.SerializationException;
 
 
 public class Strings extends arc.util.Strings {
@@ -75,7 +79,7 @@ public class Strings extends arc.util.Strings {
       if (Integer.MAX_VALUE / count < len) throw new OutOfMemoryError("Required length exceeds implementation limit");
       if (len == 1) {
           final byte[] single = new byte[count];
-          java.util.Arrays.fill(single, value[0]);
+          Arrays.fill(single, value[0]);
           return new String(single);
       }
       
@@ -159,44 +163,48 @@ public class Strings extends arc.util.Strings {
    * because the ident isn't correct and the max object size before new line is too big.
    */
   public static void jsonPrettyPrint(JsonValue object, Writer writer, OutputType outputType, int indent) throws IOException {
-    if (object.isObject()) {
-      if (object.child == null) writer.append("{}");
-      else {
-        indent++;
-        boolean newLines = needNewLine(object, 1);
-        writer.append(newLines ? "{\n" : "{ ");
-        for (JsonValue child = object.child; child != null; child = child.next) {
-          if(newLines) writer.append(repeat("  ", indent));
-          writer.append(outputType.quoteName(child.name));
-          writer.append(": ");
-          jsonPrettyPrint(child, writer, outputType, indent);
-          if((!newLines || outputType != OutputType.minimal) && child.next != null) writer.append(',');
-          writer.append(newLines ? '\n' : ' ');
+    switch (object.type()) {
+      case object:
+        if (object.child == null) writer.write("{}");
+        else {
+          indent++;
+          boolean newLines = needNewLine(object, 1);
+          writer.write(newLines ? "{\n" : "{ ");
+          for (JsonValue child = object.child; child != null; child = child.next) {
+            if(newLines) writer.write(repeat("  ", indent));
+            writer.write(outputType.quoteName(child.name));
+            writer.write(": ");
+            jsonPrettyPrint(child, writer, outputType, indent);
+            if((!newLines || outputType != OutputType.minimal) && child.next != null) writer.append(',');
+            writer.write(newLines ? '\n' : ' ');
+          }
+          if(newLines) writer.write(repeat("  ", indent - 1));
+          writer.write('}');
         }
-        if(newLines) writer.append(repeat("  ", indent - 1));
-        writer.append('}');
-      }
-    } else if (object.isArray()) {
-      if (object.child == null) writer.append("[]");
-      else {
-        indent++;
-        boolean newLines = needNewLine(object, 1);
-        writer.append(newLines ? "[\n" : "[ ");
-        for (JsonValue child = object.child; child != null; child = child.next) {
-          if (newLines) writer.append(repeat("  ", indent));
-          jsonPrettyPrint(child, writer, outputType, indent);
-          if ((!newLines || outputType != OutputType.minimal) && child.next != null) writer.append(',');
-          writer.append(newLines ? '\n' : ' ');
+        break;
+      case array:
+        if (object.child == null) writer.write("[]");
+        else {
+          indent++;
+          boolean newLines = needNewLine(object, 1);
+          writer.write(newLines ? "[\n" : "[ ");
+          for (JsonValue child = object.child; child != null; child = child.next) {
+            if (newLines) writer.write(repeat("  ", indent));
+            jsonPrettyPrint(child, writer, outputType, indent);
+            if ((!newLines || outputType != OutputType.minimal) && child.next != null) writer.append(',');
+            writer.write(newLines ? '\n' : ' ');
+          }
+          if (newLines) writer.append(repeat("  ", indent - 1));
+          writer.write(']');
         }
-        if (newLines) writer.append(repeat("  ", indent - 1));
-        writer.append(']');
-      }
-    } else if(object.isString()) writer.append(outputType.quoteValue(object.asString()));
-    else if(object.isDouble()) writer.append(Double.toString(object.asDouble()));
-    else if(object.isLong()) writer.append(Long.toString(object.asLong()));
-    else if(object.isBoolean()) writer.append(Boolean.toString(object.asBoolean()));
-    else if(object.isNull()) writer.append("null");
-    else throw new arc.util.serialization.SerializationException("Unknown object type: " + object);
+        break;
+      case stringValue: writer.write(outputType.quoteValue(object.asString())); break;
+      case doubleValue: writer.write(Double.toString(object.asDouble())); break;
+      case longValue: writer.write(Long.toString(object.asLong())); break;
+      case booleanValue: writer.write(Boolean.toString(object.asBoolean())); break;
+      case nullValue: writer.write("null"); break;
+      default: throw new SerializationException("Unknown object type: " + object);
+    }
   }
   
   private static boolean needNewLine(JsonValue object, int maxChildren) {
@@ -237,5 +245,17 @@ public class Strings extends arc.util.Strings {
       result |= (b[i] & 0xFF);
     }
     return result;
+  }
+  
+  /** Method that suppress {@link IOException} from {@link ByteBufferInput#readUTF()}. */
+  public static String readUTF(ByteBufferInput in) {
+    try { return in.readUTF(); }
+    catch (Exception e) { throw new RuntimeException(e); }
+  }
+  
+  /** Method that suppress {@link IOException} from {@link ByteBufferOutput#writeUTF(String)}. */
+  public static void writeUTF(ByteBufferOutput in, String str) {
+    try { in.writeUTF(str); }
+    catch (Exception e) { throw new RuntimeException(e); }
   }
 }

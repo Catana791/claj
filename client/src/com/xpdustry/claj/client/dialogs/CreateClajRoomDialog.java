@@ -19,8 +19,6 @@
 
 package com.xpdustry.claj.client.dialogs;
 
-import com.xpdustry.claj.client.*;
-
 import arc.Core;
 import arc.Events;
 import arc.graphics.Color;
@@ -43,6 +41,8 @@ import mindustry.gen.Icon;
 import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
+
+import com.xpdustry.claj.client.*;
 
 
 public class CreateClajRoomDialog extends BaseDialog {
@@ -298,7 +298,7 @@ public class CreateClajRoomDialog extends BaseDialog {
     Vars.ui.loadfrag.show("@claj.manage.creating-room");
     link = null;
     // Disconnect the client if the room is not created until 10 seconds
-    Timer.Task t = Timer.schedule(Claj::closeRoom, 10);
+    Timer.Task t = Timer.schedule(this::closeRoom, 10);
     Claj.createRoom(selected.ip, selected.port, l -> {
       Vars.ui.loadfrag.hide();
       t.cancel();

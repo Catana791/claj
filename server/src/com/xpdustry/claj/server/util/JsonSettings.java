@@ -34,6 +34,8 @@ import arc.struct.ObjectMap;
 import arc.util.io.Streams;
 import arc.util.serialization.*;
 
+import com.xpdustry.claj.common.util.Strings;
+
 
 public class JsonSettings {
   protected final Fi file;

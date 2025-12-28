@@ -23,6 +23,8 @@ import arc.Events;
 import arc.net.Connection;
 import arc.net.DcReason;
 
+import com.xpdustry.claj.common.ClajPackets.*;
+
 
 public class ClajEvents {
   /** Fire an event to the {@link ClajVars#loop}. Do nothing if {@link ClajVars#loop} is {@code null} or not started. */
@@ -96,9 +98,9 @@ public class ClajEvents {
   public static class RoomCreationRejectedEvent {
     /** the connection that tried to create the room */
     public final Connection connection;
-    public final ClajPackets.RoomClosedPacket.CloseReason reason;
+    public final CloseReason reason;
     
-    public RoomCreationRejectedEvent(Connection connection, ClajPackets.RoomClosedPacket.CloseReason reason) {
+    public RoomCreationRejectedEvent(Connection connection, CloseReason reason) {
       this.connection = connection;
       this.reason = reason;
     }
@@ -111,9 +113,9 @@ public class ClajEvents {
    */
   public static class ActionDeniedEvent {
     public final Connection connection;
-    public final ClajPackets.ClajMessage2Packet.MessageType reason;
+    public final MessageType reason;
     
-    public ActionDeniedEvent(Connection connection, ClajPackets.ClajMessage2Packet.MessageType reason) {
+    public ActionDeniedEvent(Connection connection, MessageType reason) {
       this.connection = connection;
       this.reason = reason;
     }
