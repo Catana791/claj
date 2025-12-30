@@ -32,13 +32,27 @@ allprojects {
   // Force java 1.8
   tasks.withType(JavaCompile) {
     targetCompatibility = JavaVersion.VERSION_1_8
-    sourceCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
     options.encoding = "UTF-8"
-    options.compilerArgs.addAll(["--release", "8"])
+    options.release = 8
+    
+    // Needed due to Anuken's modified jabel
+    options.fork = true
+    options.forkOptions.jvmArgs += [
+      "--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+      "--add-opens=java.base/sun.reflect.annotation=ALL-UNNAMED"
+    ]
   }
   
   dependencies {
-    annotationProcessor "com.github.bsideup:jabel:1.0.1"
+    // Temporary: added record desugarization. See: https://github.com/xpdustry/jabel
+    annotationProcessor rootProject.files("libs/jabel.jar") //"com.github.Anuken:jabel:0.9.0"
   }
 }
 

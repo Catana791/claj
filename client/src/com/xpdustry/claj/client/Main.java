@@ -19,6 +19,8 @@
 
 package com.xpdustry.claj.client;
 
+import arc.Core;
+
 import mindustry.Vars;
 import mindustry.mod.Mod;
 import mindustry.mod.Mods;
@@ -27,10 +29,14 @@ import com.xpdustry.claj.client.dialogs.*;
 
 
 public class Main extends Mod {
+  public static JoinViaClajDialog joinDialog;
+  public static CreateClajRoomDialog createDialog;
+  
   @Override
   public void init() {
-    new JoinViaClajDialog();
-    new CreateClajRoomDialog();
+    ClajUpdater.schedule();
+    joinDialog = new JoinViaClajDialog();
+    createDialog = new CreateClajRoomDialog();
   }
   
   /** Cached meta to avoid searching every times. */

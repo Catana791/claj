@@ -93,13 +93,15 @@ public class ClajProxy extends ProxyClient {
   }
   
   protected void runRoomCreated() {
-    if (roomCreated != null) roomCreated.get(roomId);
+    if (roomCreated != null) 
+      Core.app.post(() -> roomCreated.get(roomId));
   }
   
   /** This also resets room id and removes callbacks. */
   protected void runRoomClose() {
     roomId = UNCREATED_ROOM;
-    if (roomClosed != null) roomClosed.get(closeReason);
+    if (roomClosed != null) 
+      Core.app.post(() -> roomClosed.get(closeReason));
     roomCreated = null;
     roomClosed = null;
   }
