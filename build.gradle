@@ -65,21 +65,17 @@ project(":common") {
 
 project(":client") {
   toxopid.platforms = [ModPlatform.DESKTOP, ModPlatform.ANDROID]
+  // implementation dependency is not enouth, classes are not included into dex
+  sourceSets.main.java.srcDirs += project(":common").sourceSets.main.java.srcDirs
   
   dependencies {
-    implementation project(":common")
     compileOnly toxopid.dependencies.arcCore
     compileOnly toxopid.dependencies.mindustryCore
   }
 
   mergeJar {
     archiveFileName = "${metadata.name}-${project.name}.jar"
-   
-    // Includes common
-    from {
-      configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-   
+
     // Includes mod json and icon
     from(rootDir) {
       include "mod.hjson"

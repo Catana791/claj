@@ -62,8 +62,8 @@ public class ClajUpdater {
       Jval json = Jval.read(res.getResultAsString());
       Jval.JsonArray releases = json.asArray();
       Jval release = releases.find(r -> r.getBool("prerelease", false));
-      if (release == null) throw new RuntimeException("no pre-release found");
-      Vars.ui.mods.githubImportMod(repo, isJava, Integer.toString(release.get("id").asInt())); 
+      if (release == null) throw new RuntimeException("No pre-release found");
+      Vars.ui.mods.githubImportMod(repo, isJava, release.get("id").asString()); 
     // Why private anuke?
     }, t -> Reflect.invoke(Vars.ui.mods, "importFail", new Object[] {t}, Throwable.class));
   }
