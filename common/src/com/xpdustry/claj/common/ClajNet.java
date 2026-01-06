@@ -19,14 +19,10 @@
 
 package com.xpdustry.claj.common;
 
-import arc.func.Cons;
-import arc.func.Cons2;
 import arc.func.Prov;
 import arc.net.ArcNetException;
-import arc.net.Connection;
 import arc.struct.ArrayMap;
 import arc.struct.ObjectIntMap;
-import arc.struct.ObjectMap;
 
 import com.xpdustry.claj.common.packets.Packet;
 
@@ -40,14 +36,7 @@ public class ClajNet {
   
   protected static final ArrayMap<Class<?>, Prov<? extends Packet>> packets = new ArrayMap<>();
   protected static final ObjectIntMap<Class<?>> packetToId = new ObjectIntMap<>();
-  
-  protected static final ObjectMap<Class<?>, Cons<? extends Packet>> clientListeners = new ObjectMap<>();
-  protected static final ObjectMap<Class<?>, Cons2<Connection, ? extends Packet>> serverListeners = new ObjectMap<>();
-  
-  static {
-    ClajPackets.register();
-  }
-  
+
   /** Registers a new packet type for serialization. */
   public static <T extends Packet> void register(Prov<T> cons) {
     Class<?> type = cons.get().getClass();
@@ -66,38 +55,5 @@ public class ClajNet {
   public static <T extends Packet> T newPacket(byte id) {
     if (id < 0 || id >= packets.size) throw new ArcNetException("Unknown packet id: " + id);
     return ((Prov<T>)packets.getValueAt(id)).get();
-  }
-  
-  
-  /** Registers a client listener for when an object is received. */
-  public <T extends Packet> void handleClient(Class<T> type, Cons<T> listener) { 
-    clientListeners.put(type, listener); 
-  }
-
-  /** Registers a server listener for when an object is received. */
-  public <T extends Packet> void handleServer(Class<T> type, Cons2<Connection, T> listener) {
-    serverListeners.put(type, listener);
-  }
-  
-  /** Call to handle a packet being received for the client. */
-  @SuppressWarnings("unchecked")
-  public void handleClientReceived(Packet object) {
-    object.handled();
-
-    var listener = (Cons<Packet>)clientListeners.get(object.getClass());
-    if (listener != null) listener.get(object);
-    else object.handleClient();
-  }
-  
-  /** Call to handle a packet being received for the server. */
-  @SuppressWarnings("unchecked")
-  public void handleServerReceived(Connection connection, Packet object) {
-    if (!connection.isConnected()) return;
-    object.handled();
-
-    //handle object normally
-    var listener = (Cons2<Connection, Packet>)serverListeners.get(object.getClass());
-    if (listener != null) listener.get(connection, object);
-    else object.handleServer(connection);
-  }         
+  } 
 }

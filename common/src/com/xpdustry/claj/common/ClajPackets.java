@@ -27,46 +27,28 @@ import com.xpdustry.claj.common.packets.*;
 
 
 public class ClajPackets {  
-  public static void register() {
-    ClajNet.register(ConnectionPacketWrapPacket::new);
-    ClajNet.register(ConnectionClosedPacket::new);
+  public static void init() {
     ClajNet.register(ConnectionJoinPacket::new);
+    ClajNet.register(ConnectionClosedPacket::new);
+    ClajNet.register(ConnectionPacketWrapPacket::new);
     ClajNet.register(ConnectionIdlingPacket::new);
-    ClajNet.register(RoomCreationRequestPacket::new);
-    ClajNet.register(RoomClosureRequestPacket::new);
+    ClajNet.register(RoomCreationRequestPacket::new); // <-- should be the 5th
+    ClajNet.register(RoomClosureRequestPacket::new); 
     ClajNet.register(RoomClosedPacket::new);
+    ClajNet.register(RoomJoinPacket::new); // <-- should be the 8th
+    ClajNet.register(RoomJoinAcceptedPacket::new);
+    ClajNet.register(RoomJoinDeniedPacket::new);
     ClajNet.register(RoomLinkPacket::new);
-    ClajNet.register(RoomJoinPacket::new);
+    ClajNet.register(RoomConfigPacket::new);
+    ClajNet.register(RoomListRequestPacket::new);
+    ClajNet.register(RoomListPacket::new);
+    ClajNet.register(RoomInfoRequestPacket::new);
+    ClajNet.register(RoomInfoPacket::new);
     ClajNet.register(ClajTextMessagePacket::new);
     ClajNet.register(ClajMessagePacket::new);
     ClajNet.register(ClajPopupPacket::new);
   }
-
   
-  public static enum CloseReason {
-    /** Closed without reason. */
-    closed,
-    /** Incompatible claj client. */
-    obsoleteClient, 
-    /** Old claj version. */
-    outdatedVersion,
-    /** Server is shutting down. */
-    serverClosed,
-    /** Defined room capacity is reached. */
-    roomFull;
-    
-    public static final CloseReason[] all = values();
-  }
-  
-  public static enum MessageType {
-    serverClosing,
-    packetSpamming,
-    alreadyHosting,
-    roomClosureDenied,
-    conClosureDenied;
-    
-    public static final MessageType[] all = values();
-  }
   
   /** Generic client connection event. */
   public static class Connect implements Packet {
@@ -85,17 +67,9 @@ public class ClajPackets {
       data = new byte[read.buffer.remaining()];
       read.readFully(data);
     }
+    
     public void write(ByteBufferOutput write) {
       write.write(data);
-    }
-    
-    public RawPacket r(ByteBufferInput read) {
-      read(read);
-      return this;
-    }
-    public RawPacket w(ByteBufferOutput write) { 
-      write(write);
-      return this;
     }
   }
 }

@@ -26,15 +26,15 @@
 
 package com.xpdustry.claj.server.util;
 
-import java.io.IOException;
-
+import arc.util.pooling.Pool.Poolable;
 import arc.util.serialization.BaseJsonWriter;
 import arc.util.serialization.JsonValue;
 import arc.util.serialization.JsonValue.ValueType;
+import arc.util.serialization.JsonWriter.OutputType;
 
 
 /** Build a JsonValue object */
-public class JsonWriterBuilder implements BaseJsonWriter {
+public class JsonWriterBuilder implements BaseJsonWriter, Poolable {
   private JsonValue root, current, last;
   private String name;
 
@@ -46,14 +46,14 @@ public class JsonWriterBuilder implements BaseJsonWriter {
   
   @Override
   /** No-op */
-  public void setOutputType(arc.util.serialization.JsonWriter.OutputType outputType) {}
+  public void setOutputType(OutputType outputType) {}
 
   @Override
   /** No-op */
   public void setQuoteLongValues(boolean quoteLongValues) {}
 
   @Override
-  public BaseJsonWriter name(String name) throws IOException {
+  public JsonWriterBuilder name(String name) {
     if (current == null || current.isArray())
       throw new IllegalStateException("Current item must be an object.");
     if (name == null) throw new NullPointerException("name cannot be null");
@@ -63,7 +63,7 @@ public class JsonWriterBuilder implements BaseJsonWriter {
   }
 
   @Override
-  public BaseJsonWriter value(Object object) throws IOException {
+  public JsonWriterBuilder value(Object object) {
     requireName();
     if (current != null && !current.isArray() && !current.isObject()) 
       throw new IllegalStateException("Current item must be an object or an array.");
@@ -79,7 +79,7 @@ public class JsonWriterBuilder implements BaseJsonWriter {
         else if (object instanceof Long) jval = new JsonValue(number.longValue());
         else if (object instanceof Float) jval = new JsonValue(number.floatValue());
         else if (object instanceof Double) jval = new JsonValue(number.doubleValue());
-        else throw new IOException("Unknown number object type.");
+        else throw new IllegalArgumentException("Unknown number object type.");
     } else if (object instanceof CharSequence || 
                object instanceof Character) jval = new JsonValue(object.toString());
     else if (object instanceof Boolean) jval = new JsonValue((boolean)object);
@@ -94,7 +94,7 @@ public class JsonWriterBuilder implements BaseJsonWriter {
         jval = new JsonValue(json.type());
         jval.child = json.child;
       }
-    } else throw new IOException("Unknown object type.");
+    } else throw new IllegalArgumentException("Unknown object type.");
     
     if (root == null) root = current = jval;
     else addValue(jval);
@@ -102,14 +102,14 @@ public class JsonWriterBuilder implements BaseJsonWriter {
   }
   
   @Override
-  public BaseJsonWriter object() throws IOException {
+  public JsonWriterBuilder object() {
     requireName();
     newChild(false);
     return this;
   }
 
   @Override
-  public BaseJsonWriter array() throws IOException {
+  public JsonWriterBuilder array() {
     requireName();
     newChild(true);
     return this;
@@ -151,22 +151,22 @@ public class JsonWriterBuilder implements BaseJsonWriter {
   }
   
   @Override
-  public BaseJsonWriter object(String name) throws IOException {
+  public JsonWriterBuilder object(String name) {
       return name(name).object();
   }
 
   @Override
-  public BaseJsonWriter array(String name) throws IOException {
+  public JsonWriterBuilder array(String name) {
       return name(name).array();
   }
 
   @Override
-  public BaseJsonWriter set(String name, Object value) throws IOException {
+  public JsonWriterBuilder set(String name, Object value) {
       return name(name).value(value);
   }
 
   @Override
-  public BaseJsonWriter pop() throws IOException {
+  public JsonWriterBuilder pop() {
     if (name != null) 
       throw new IllegalStateException("Expected an object, array or value, since a name was set.");
     last = current;
@@ -178,12 +178,12 @@ public class JsonWriterBuilder implements BaseJsonWriter {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     while (current != null && root != current) 
       pop();
   }
 
-  public void clear() {
+  public void reset() {
     root = current = last = null;
     name = null;
   }

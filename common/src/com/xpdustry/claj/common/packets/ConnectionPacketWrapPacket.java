@@ -19,7 +19,7 @@
 
 package com.xpdustry.claj.common.packets;
 
-import arc.func.Cons2;
+import arc.net.ArcNetException;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
@@ -28,10 +28,8 @@ import com.xpdustry.claj.common.ClajPackets.RawPacket;
 
 /** Special packet for connection packet wrapping. */
 public class ConnectionPacketWrapPacket extends ConnectionWrapperPacket {
-  /** Used to notify serializer to read the rest. */
-  public static Cons2<ConnectionPacketWrapPacket, ByteBufferInput> readContent;
-  /** Used to notify serializer to write the rest. */
-  public static Cons2<ConnectionPacketWrapPacket, ByteBufferOutput> writeContent;
+  /** Used to notify serializer to read/write the rest. MUST BE SET! */
+  public static Serializer serializer;
   
   /** Decoded object received by the client. Should be handled by the serializer. */
   public Object object;
@@ -40,13 +38,25 @@ public class ConnectionPacketWrapPacket extends ConnectionWrapperPacket {
   
   public boolean isTCP;
   
-  protected void read0(ByteBufferInput read) {
+  protected void readImpl(ByteBufferInput read) {
+    super.readImpl(read);
     isTCP = read.readBoolean();
-    if (readContent != null) readContent.get(this, read);
+    if (serializer == null) 
+      throw new ArcNetException("ConnectionPacketWrapPacket.serializer is not set!");
+    serializer.read(this, read);
   }
   
-  protected void write0(ByteBufferOutput write) {
+  public void write(ByteBufferOutput write) {
+    super.write(write);
     write.writeBoolean(isTCP);
-    if (writeContent != null) writeContent.get(this, write);
+    if (serializer == null)
+      throw new ArcNetException("ConnectionPacketWrapPacket.serializer is not set!");
+    serializer.write(this, write);
+  }
+  
+  
+  public static interface Serializer {
+    void read(ConnectionPacketWrapPacket packet, ByteBufferInput read);
+    void write(ConnectionPacketWrapPacket packet, ByteBufferOutput write);
   }
 }

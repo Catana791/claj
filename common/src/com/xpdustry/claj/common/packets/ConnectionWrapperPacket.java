@@ -28,14 +28,9 @@ public abstract class ConnectionWrapperPacket extends DelayedPacket {
 
   protected void readImpl(ByteBufferInput read) {
     conID = read.readInt();
-    read0(read);
   }
 
   public void write(ByteBufferOutput write) {
     write.writeInt(conID);
-    write0(write);
   }
-
-  protected void read0(ByteBufferInput read) {}
-  protected void write0(ByteBufferOutput write) {}
 }

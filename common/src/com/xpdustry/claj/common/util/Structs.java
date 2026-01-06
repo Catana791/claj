@@ -24,9 +24,19 @@ import java.util.NoSuchElementException;
 
 import arc.func.Boolf;
 import arc.func.Func;
+import arc.util.Reflect;
 
 
 public class Structs extends arc.util.Structs {
+  public static <T> T[] insert(T[] array, int index, T item) {
+    T[] next = Reflect.newArray(array, array.length + 1);
+    if (index > 0) System.arraycopy(array, 0, next, 0, index);
+    int tail = array.length - index;
+    if (tail > 0) System.arraycopy(array, index, next, index + 1, tail);
+    next[index] = item;
+    return next;
+  }
+  
   @SafeVarargs
   public static <T> Iterable<T> generator(T... list) {
     return () -> new Iterator<>() {

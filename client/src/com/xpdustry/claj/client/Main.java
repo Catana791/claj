@@ -19,24 +19,48 @@
 
 package com.xpdustry.claj.client;
 
-import arc.Core;
+import arc.Events;
+import arc.util.Timer;
 
 import mindustry.Vars;
+import mindustry.game.EventType;
 import mindustry.mod.Mod;
 import mindustry.mod.Mods;
 
+import com.xpdustry.claj.api.Claj;
 import com.xpdustry.claj.client.dialogs.*;
 
-
 public class Main extends Mod {
+  public static MindustryClajProvider provider;
   public static JoinViaClajDialog joinDialog;
   public static CreateClajRoomDialog createDialog;
+  public static RoomPasswordDialog passwordDialog;
+  public static RoomBrowserDialog browserDialog;
   
   @Override
   public void init() {
+    provider = new MindustryClajProvider();
+    Claj.init(provider);
     ClajUpdater.schedule();
+    initEvents();
+
     joinDialog = new JoinViaClajDialog();
     createDialog = new CreateClajRoomDialog();
+    passwordDialog = new RoomPasswordDialog();
+    browserDialog = new RoomBrowserDialog();
+  }
+  
+  /** Automatically closes the rooms when quitting the game. */
+  public void initEvents() {
+    // Pretty difficult to know when the player quits the game, 
+    // there is no event and StateChangeEvent is not reliable for that...
+    Vars.ui.paused.hidden(() -> {
+      Timer.schedule(() -> {
+        if (!Vars.net.active() || Vars.state.isMenu()) Claj.get().closeRooms();
+      }, 1f);
+    });
+    Events.run(EventType.HostEvent.class, Claj.get()::closeRooms);
+    Events.run(EventType.ClientPreConnectEvent.class, Claj.get()::closeRooms);
   }
   
   /** Cached meta to avoid searching every times. */

@@ -42,6 +42,8 @@ import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
 
+import com.xpdustry.claj.api.Claj;
+import com.xpdustry.claj.api.ClajLink;
 import com.xpdustry.claj.client.*;
 
 
@@ -62,9 +64,11 @@ public class CreateClajRoomDialog extends BaseDialog {
     
     makeButtonOverlay();
     addCloseButton();
-    buttons.button("@claj.manage.create", Icon.add, this::createRoom).disabled(b -> !Claj.isRoomClosed() || selected == null);
+    buttons.button("@claj.manage.create", Icon.add, this::createRoom)
+           .disabled(b -> Claj.get().proxies.isRoomCreated() || selected == null);
     if (Vars.mobile) buttons.row();
-    buttons.button("@claj.manage.delete", Icon.cancel, this::closeRoom).disabled(b -> Claj.isRoomClosed());
+    buttons.button("@claj.manage.delete", Icon.cancel, this::closeRoom)
+           .disabled(b -> Claj.get().proxies.isRoomClosed());
     buttons.button("@claj.manage.copy", Icon.copy, this::copyLink).disabled(b -> link == null);
     
     shown(() -> {
@@ -198,13 +202,13 @@ public class CreateClajRoomDialog extends BaseDialog {
       refreshingOnline = false;
       if (ClajServers.online.isEmpty()) {
         online.clear();
-        online.button("@claj.manage.no-servers-found", () -> {}).growX().padTop(5).padBottom(5).row();
+        online.button("@claj.server.empty", () -> {}).growX().padTop(5).padBottom(5).row();
       } else setupServers(ClajServers.online, online, false, null);
     }, e -> {
       refreshingOnline = false;
       online.clear();
-      online.button("@claj.manage.check-internet", () -> {}).growX().padTop(5).padBottom(5).row();
-      Vars.ui.showException("@claj.manage.fetch-failed", e);
+      online.button("@claj.server.check-internet", () -> {}).growX().padTop(5).padBottom(5).row();
+      Vars.ui.showException("@claj.server.fetch-failed", e);
     }); 
   }
   
@@ -278,7 +282,7 @@ public class CreateClajRoomDialog extends BaseDialog {
       }
 
       ping.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(2).color(Pal.accent).left();
-      Claj.pingHost(server.ip, server.port, ms -> {
+      Claj.get().pingHost(server.ip, server.port, ms -> {
         ping.clear();
         ping.image(Icon.ok).color(Color.green).padLeft(5).padRight(5).left();
         if (Vars.mobile) 
@@ -297,26 +301,33 @@ public class CreateClajRoomDialog extends BaseDialog {
     
     Vars.ui.loadfrag.show("@claj.manage.creating-room");
     link = null;
-    // Disconnect the client if the room is not created until 10 seconds
+    // Disconnect the client if the room is not created after 10 seconds
     Timer.Task t = Timer.schedule(this::closeRoom, 10);
-    Claj.createRoom(selected.ip, selected.port, l -> {
+    Claj.get().createRoom(selected.ip, selected.port, l -> {
       Vars.ui.loadfrag.hide();
       t.cancel();
       link = l;
+    }, c -> {
+      Vars.ui.loadfrag.hide();
+      t.cancel();
+      if (c != null) {
+        switch (c) {
+          case closed: case serverClosed:
+            Vars.ui.showText("", "@claj.room." + Strings.camelToKebab(c.name()));
+            break;
+          default:
+            Vars.ui.showErrorMessage("@claj.room." + Strings.camelToKebab(c.name()));
+        }
+      } else if (link == null) Vars.ui.showErrorMessage("@claj.manage.room-creation-failed");
+      link = null;
     }, e -> {
       Vars.net.handleException(e);
       t.cancel();
-    }, r -> {
-      Vars.ui.loadfrag.hide();
-      t.cancel();
-      if (r != null) Vars.ui.showText("", "@claj.room." + Strings.camelToKebab(r.name()));
-      else if (link == null) Vars.ui.showErrorMessage("@claj.manage.room-creation-failed");
-      link = null;
     });
   }
   
   public void closeRoom() {
-    Claj.closeRoom();
+    Claj.get().proxies.closeRoom();
     link = null;
   }
   

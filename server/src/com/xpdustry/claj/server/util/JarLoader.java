@@ -7,6 +7,7 @@ import arc.files.Fi;
 
 
 public class JarLoader {
+  public static ClassLoader load(Fi jar) throws Exception { return load(jar, null); }
   public static ClassLoader load(Fi jar, ClassLoader parent) throws Exception {
     return new URLClassLoader(new URL[] {jar.file().toURI().toURL()}, parent) {
       @Override

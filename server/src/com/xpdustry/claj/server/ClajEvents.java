@@ -23,7 +23,9 @@ import arc.Events;
 import arc.net.Connection;
 import arc.net.DcReason;
 
-import com.xpdustry.claj.common.ClajPackets.*;
+import com.xpdustry.claj.common.*;
+import com.xpdustry.claj.common.status.CloseReason;
+import com.xpdustry.claj.common.status.MessageType;
 
 
 public class ClajEvents {

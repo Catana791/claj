@@ -28,7 +28,6 @@ import arc.util.CommandHandler;
 import arc.util.Log;
 import arc.util.OS;
 import arc.util.Threads;
-import arc.util.CommandHandler.ResponseType;
 
 import com.xpdustry.claj.common.util.Strings;
 import com.xpdustry.claj.server.plugin.Plugins;

@@ -19,5 +19,19 @@
 
 package com.xpdustry.claj.common.packets;
 
+import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 
-public class RoomJoinPacket extends RoomLinkPacket {}
+public class RoomJoinPacket extends RoomLinkPacket {
+  public short password = -1;
+  
+  protected void readImpl(ByteBufferInput read) {
+    super.readImpl(read);
+    password = read.buffer.hasRemaining() ? read.readShort() : -1;
+  }
+  
+  public void write(ByteBufferOutput write) {
+    super.write(write);
+    if (password < 0) write.writeShort(password);
+  }
+}

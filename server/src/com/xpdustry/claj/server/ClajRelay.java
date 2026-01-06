@@ -40,9 +40,9 @@ import arc.util.Threads;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
-import com.xpdustry.claj.common.ClajNet;
-import com.xpdustry.claj.common.ClajPackets.*;
-import com.xpdustry.claj.common.packets.*;
+import com.xpdustry.claj.common.net.ClajNet;
+import com.xpdustry.claj.common.net.ClajPackets.*;
+import com.xpdustry.claj.common.net.packets.*;
 import com.xpdustry.claj.common.util.Strings;
 import com.xpdustry.claj.server.ClajEvents.*;
 import com.xpdustry.claj.server.util.NetworkSpeed;
@@ -116,7 +116,7 @@ public class ClajRelay extends Server implements NetListener {
   }
   
   public void closeRooms() {
-    try { 
+    try {
       for (ClajRoom r : rooms.values()) r.close(CloseReason.serverClosed);
     } catch (Throwable ignored) {}
     rooms.clear();  

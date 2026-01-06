@@ -29,11 +29,13 @@ public class ConnectionClosedPacket extends ConnectionWrapperPacket {
 
   public DcReason reason;
 
-  protected void read0(ByteBufferInput read) {
+  protected void readImpl(ByteBufferInput read) {
+    super.readImpl(read);
     reason = reasons[read.readByte()];
   }
 
-  protected void write0(ByteBufferOutput write) {
+  public void write(ByteBufferOutput write) {
+    super.write(write);
     write.writeByte(reason.ordinal());
   }
 }

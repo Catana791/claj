@@ -36,6 +36,7 @@ import arc.util.serialization.Jval;
 
 import com.xpdustry.claj.server.ClajVars;
 import com.xpdustry.claj.server.util.JarLoader;
+import com.xpdustry.claj.server.util.JsonSettings;
 
 
 /** Simplified {@link mindustry.mod.Mods} that only handles plugins. */
@@ -49,34 +50,111 @@ public class Plugins {
   
   private final Seq<LoadedPlugin> plugins = new Seq<>();
   private final ObjectMap<Class<?>, PluginMeta> metas = new ObjectMap<>();
+  /** Used to find a plugin without specifying it. */
+  private final ObjectMap<ClassLoader, Class<?>> loaders = new ObjectMap<>();
 
   /** @return the main class loader for all plugins */
   public ClassLoader mainLoader() {
     return mainLoader;
   }
+  
+  /** @return the folder where configuration files for this plugin should go. Call this in init(). */
+  public Fi getConfigFolder(Plugin plugin) {
+    return getConfigFolder(plugin.getClass());
+  }
 
   /** @return the folder where configuration files for this plugin should go. Call this in init(). */
-  public Fi getConfigFolder(Plugin plugin){
+  public Fi getConfigFolder(Class<? extends Plugin> plugin) {
     Fi result = ClajVars.pluginsDirectory.child(getMeta(plugin).name);
     result.mkdirs();
     return result;
   }
   
-  /** Returns a file named 'config.json' in a special folder for the specified plugin. Call this in init(). */
-  public Fi getConfig(Plugin plugin) {
-    return ClajVars.pluginsDirectory.child(getMeta(plugin).name).child("config.json");
+  /** @return a settings handle of {@code 'plugins/<plugin-name>/config.json'}. Call this in init(). */
+  public JsonSettings getConfig(Plugin plugin) {
+    return getConfig(plugin.getClass());
   }
   
-  /** Returns the plugin meta data. Call this in init(). */
+  /** @return a settings handle of {@code 'plugins/<plugin-name>/config.json'}. Call this in init(). */
+  public JsonSettings getConfig(Class<? extends Plugin> plugin) {
+    return new JsonSettings(getConfigFolder(plugin).child("config.json"));
+  }
+  
+  /** @return the plugin meta data. Call this in init(). */
   public PluginMeta getMeta(Plugin plugin) {
     return getMeta(plugin.getClass());
   }
   
-  /** Returns the plugin meta. Call this in init(). */
-  public PluginMeta getMeta(Class<? extends Plugin> clazz) {
-    PluginMeta load = metas.get(clazz);
+  /** @return the plugin meta. Call this in init(). */
+  public PluginMeta getMeta(Class<? extends Plugin> plugin) {
+    PluginMeta load = metas.get(plugin);
     if(load == null) throw new IllegalArgumentException("Plugin is not loaded yet (or missing)!");
     return load;
+  }
+  
+  /** @return a new main logger for the plugin. */
+  public PluginLogger getLogger(Plugin plugin) {
+    return new PluginLogger(plugin);
+  }
+  
+  /** @return a new logger for the plugin with the specified {@code topicClass}. */
+  public PluginLogger getLogger(Plugin plugin, Class<?> topicClass) {
+    return new PluginLogger(plugin, topicClass);
+  }
+   
+  /** @return a new logger for the plugin with the specified {@code topic}. */
+  public PluginLogger getLogger(Plugin plugin, String topic) {
+    return new PluginLogger(plugin, topic);
+  }
+  
+  /** Same as {@link #getConfigFolder(Class)} but tries to detect the plugin by the class calling this method. */
+  public Fi getConfigFolder() {
+    Class<? extends Plugin> clazz = detectCallingPlugin();
+    return clazz == null ? null : getConfigFolder(clazz);
+  }
+  
+  /** Same as {@link #getConfig(Class)} but tries to detect the plugin by the class calling this method. */
+  public JsonSettings getConfig() {
+    Class<? extends Plugin> clazz = detectCallingPlugin();
+    return clazz == null ? null : getConfig(clazz);
+  }
+  
+  /** Same as {@link #getMeta(Class)} but tries to detect the plugin by the class calling this method. */
+  public PluginMeta getMeta() {
+    Class<? extends Plugin> clazz = detectCallingPlugin();
+    return clazz == null ? null : getMeta(clazz);
+  }
+  
+  /** Same as {@link #getLogger(Plugin)} but tries to detect the plugin by the class calling this method. */
+  public PluginLogger getLogger() { 
+    return new PluginLogger(detectCallingPlugin()); 
+  }
+  
+  /** Same as {@link #getLogger(Plugin, Class)} but tries to detect the plugin by the class calling this method. */
+  public PluginLogger getLogger(Class<?> topicClass) { 
+    return new PluginLogger(detectCallingPlugin(), topicClass); 
+  }
+  
+   /** Same as {@link #getLogger(Plugin, String)} but tries to detect the plugin by the class calling this method. */
+  public PluginLogger getLogger(String topic) { 
+    return new PluginLogger(detectCallingPlugin(), topic); 
+  }
+  
+  /**
+   * Inspect the current thread stack to find which plugin (based on its ClassLoader) is calling the method. 
+   * @return the plugin main class or {@code null}.
+   */
+  @SuppressWarnings("unchecked")
+  public Class<? extends Plugin> detectCallingPlugin() {
+    for (StackTraceElement s : Thread.currentThread().getStackTrace()) {
+      for (ObjectMap.Entry<ClassLoader, Class<?>> e : loaders) {
+        try {
+          Class.forName(s.getClassName(), false, e.key);
+          return (Class<? extends Plugin>)e.value;
+        } catch (Throwable ignored) {}
+      }
+    }
+    return null;
   }
 
   /** Returns a list of files per plugin subdirectory. */
@@ -191,25 +269,21 @@ public class Plugins {
   }
 
   public LoadedPlugin locatePlugin(String name) {
-    return plugins.find(plugin -> plugin.enabled() && plugin.name.equals(name));
+    return plugins.find(p -> p.enabled() && p.name.equals(name));
   }
 
-  /** @return a list of plugins and versions, in the format name:version. */
+  /** @return a list of plugins and versions, in the format {@code name:version}. */
   public Seq<String> getPluginStrings() {
-    return plugins.select(l -> l.enabled()).map(l -> l.name + ":" + l.meta.version);
+    return plugins.select(LoadedPlugin::enabled).map(p -> p.name + ':' + p.meta.version);
   }
 
   /** 
-   * @return The plugins that the client is missing. <br>
-   *         The inputted array is changed to contain the extra plugins that the client has but the server doesn't.
+   * @return The plugins that the client is missing, in the format {@code name:version}. <br>
+   *         The inputed array must be in the same format, 
+   *         and is changed to contain the extra plugins that the client has but the server doesn't.
    */
   public Seq<String> getIncompatibility(Seq<String> out) {
-    Seq<String> plugins = getPluginStrings();
-    Seq<String> result = plugins.copy();
-    for (String plugin : plugins) {
-      if (out.remove(plugin)) result.remove(plugin);
-    }
-    return result;
+    return getPluginStrings().removeAll(out::remove);
   }
 
   public Seq<LoadedPlugin> list() {
@@ -348,18 +422,19 @@ public class Plugins {
       loader = JarLoader.load(sourceFile, mainLoader);
       mainLoader.addChild(loader);
       Class<?> main = Class.forName(mainClass, true, loader);
+      Class<?> mainParent = main.getSuperclass();
 
       //detect plugins that incorrectly package CLaJ in the jar
-      if (main.getSuperclass().getName().equals(Plugin.class.getName()) &&
-          main.getSuperclass().getClassLoader() != Plugin.class.getClassLoader()) 
+      if (mainParent == Plugin.class && mainParent.getClassLoader() != Plugin.class.getClassLoader()) 
         throw new PluginLoadException(
           "This plugin has loaded CLaJ dependencies from its own class loader. " +
-          "You are incorrectly including CLaJ dependencies in the mod JAR! " +
+          "You are incorrectly including CLaJ dependencies in the plugin JAR! " +
           "Make sure CLaJ is declared as `compileOnly` in your `build.gradle`, " + 
           "and the JAR is created with `runtimeClasspath`."
         );
       
       metas.put(main, meta);
+      loaders.put(loader, main);
       mainMod = (Plugin)main.getDeclaredConstructor().newInstance();
     } else mainMod = null;
     
@@ -417,7 +492,7 @@ public class Plugins {
 
     @Override
     public String toString() {
-      return "LoadedMod{" +
+      return "LoadedPlugin{" +
              "file=" + file +
              ", root=" + root +
              ", name='" + name + '\'' +

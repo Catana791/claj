@@ -25,12 +25,17 @@ import arc.util.io.ByteBufferOutput;
 
 public class ConnectionJoinPacket extends ConnectionWrapperPacket {
   public long roomId = -1;
+  public long addressHash = 0;
 
-  protected void read0(ByteBufferInput read) {
+  protected void readImpl(ByteBufferInput read) {
+    super.readImpl(read);
     roomId = read.readLong();
+    addressHash = read.readLong();
   }
   
-  protected void write0(ByteBufferOutput write) {
+  public void write(ByteBufferOutput write) {
+    super.write(write);
     write.writeLong(roomId);
+    write.writeLong(addressHash);
   }
 }

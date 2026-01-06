@@ -26,18 +26,19 @@ import arc.struct.IntMap;
 
 import com.xpdustry.claj.common.ClajPackets.*;
 import com.xpdustry.claj.common.packets.*;
+import com.xpdustry.claj.common.util.AddressHasher;
 import com.xpdustry.claj.common.util.Strings;
 import com.xpdustry.claj.server.util.NetworkSpeed;
 
 
 public class ClajRoom implements NetListener {
-  private boolean closed;
+  protected boolean closed;
   
   /** The room id. */
   public final long id;
   /** 
    * The room id encoded in an url-safe base64 string.
-   * @see com.xpdustry.claj.client.ClajLink
+   * @see com.xpdustry.claj.api.ClajLink
    */
   public final String idString;
   /** The host connection of this room. */
@@ -62,6 +63,9 @@ public class ClajRoom implements NetListener {
     ConnectionJoinPacket p = new ConnectionJoinPacket();
     p.conID = connection.getID();
     p.roomId = id;
+    if (connection.getRemoteAddressTCP() != null) {
+      p.addressHash = AddressHasher.hash(connection.getRemoteAddressTCP().getAddress());
+    }
     host.sendTCP(p);
 
     clients.put(connection.getID(), connection);

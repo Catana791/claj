@@ -22,7 +22,7 @@ package com.xpdustry.claj.common.packets;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
-import com.xpdustry.claj.common.ClajPackets.MessageType;
+import com.xpdustry.claj.common.status.MessageType;
 
 
 public class ClajMessagePacket extends DelayedPacket {

@@ -40,8 +40,8 @@ public class ClajServers {
       online.clear();
       for (ObjectMap.Entry<String, Jval> e : list)
         online.put(e.key, e.value.asString());
-      done.run();
-    }, failed);
+      Core.app.post(done);
+    }, t -> Core.app.post(() -> failed.get(t)));
     //online.put("Chaotic Neutral", "n3.xpdustry.com:7025");
   }
   

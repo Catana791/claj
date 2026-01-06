@@ -23,6 +23,7 @@ import java.util.jar.Manifest;
 
 import arc.Events;
 import arc.util.Log;
+import arc.util.OS;
 
 import com.xpdustry.claj.server.plugin.Plugin;
 import com.xpdustry.claj.server.plugin.Plugins;
@@ -119,14 +120,14 @@ public class Main {
       Log.err("Unable to locate manifest properties", e);
       return false;
     }
-    // Fallback to java property
-    if (version == null) version = System.getProperty("Claj-Version");
-    if (version == null) {
+    // Fallback to argument property
+    String versionOverride = OS.prop("Claj-Version");
+    if (version == null && versionOverride == null) {
       Log.err("The 'Claj-Version' property is missing in the jar manifest.");
       return false;
     }
     
-    ClajVars.version = version;
+    ClajVars.version = version == null ? versionOverride : version;
     return true;
   }
 }

@@ -17,55 +17,70 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.client.proxy;
+package com.xpdustry.claj.api.net;
 
 import java.io.IOException;
 import java.net.InetAddress;
 
-import arc.net.ArcNetException;
-import arc.net.Client;
-import arc.net.Connection;
-import arc.net.DcReason;
-import arc.net.NetListener;
-import arc.net.NetSerializer;
+import arc.net.*;
 import arc.struct.IntMap;
 import arc.util.Log;
 import arc.util.Reflect;
-import arc.util.Structs;
+
+import com.xpdustry.claj.common.net.*;
+import com.xpdustry.claj.common.util.Structs;
+
 
 /** 
- * A client that act like a server. <br>
+ * A client that act like a server. Discovery is not supported for now (i don't have the use). <br>
  * The proxy doesn't do all the job: <br>
- * - Packet reception must be done manually (by overriding {@link #received}). <br>
+ * - Packet reception must be done manually. <br>
  * - Notifying methods must be called ({@link #conConnected}, {@link #conDisconnected}, {@link #conReceived} and
  * {@link #conIdle}). <br>
  * - Packet making methods must be defined ({@link #makeWrapPacket} and {@link #makeClosePacket}).
  */
-public abstract class ProxyClient extends Client implements NetListener {
+public abstract class ProxyClient extends Client {
   public static int defaultTimeout = 5000; //ms
 
+  // Redefine some internal states btw
+  protected int connectTimeout;
+  protected InetAddress connectHost;
+  protected int connectTcpPort;
+  protected int connectUdpPort;
+    
   /** For faster get. */
   protected final IntMap<VirtualConnection> connectionsMap = new IntMap<>();
   /** For faster iteration. */
   protected VirtualConnection[] connections = {};
-  protected final NetListener dispatchListener; 
-  protected volatile boolean shutdown, ignoreExceptions, connecting;
+  protected final NetListener conListener; 
+  protected volatile boolean shutdown = true, ignoreExceptions, connecting;
+  protected ClientReceiver receiver;
   
   public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization, 
-                     NetListener dispatchListener) { 
+                     NetListener conListener) { 
     super(writeBufferSize, objectBufferSize, serialization); 
-    this.dispatchListener = dispatchListener;
-    addListener(this);
+    this.conListener = conListener;
+    receiver = new ClientReceiver(this);
+  }
+
+  /** 
+   * Connect used {@link #defaultTimeout} and same {@code port} for TCP and UDP. <br>
+   * This also ensures that the client is running before connection.
+   */
+  public void connect(String host, int port) throws IOException {
+    if (!isRunning()) start();
+    connect(defaultTimeout, host, port, port);
   }
   
   @Override
   public void connect(int timeout, InetAddress host, int tcpPort, int udpPort) throws IOException {
     connecting = true;
+    connectTimeout = timeout;
+    connectHost = host;
+    connectTcpPort = tcpPort;
+    connectUdpPort = udpPort;
     try { super.connect(timeout, host, tcpPort, udpPort); }
-    catch (Exception e) {
-      connecting = false;
-      throw e;
-    }
+    finally { connecting = false; } 
   }
  
   /** 
@@ -77,7 +92,7 @@ public abstract class ProxyClient extends Client implements NetListener {
     shutdown = false;
     while(!shutdown) {
       try {
-        update(250); 
+        update(250);
         // update idle
         for (VirtualConnection c : connections) {
           if (c.isIdle()) c.notifyIdle0();
@@ -97,6 +112,17 @@ public abstract class ProxyClient extends Client implements NetListener {
   }
   
   @Override
+  public void start() {
+    if (getUpdateThread() != null) {
+      shutdown = true;
+      try { getUpdateThread().join(5000); }
+      catch (InterruptedException ignored) {}
+      getUpdateThread().interrupt(); // force stop
+    }
+    super.start();
+  }
+  
+  @Override
   public void stop() {
     if(shutdown) return;
     super.stop();
@@ -111,6 +137,12 @@ public abstract class ProxyClient extends Client implements NetListener {
     return connecting;
   }
   
+  @Override
+  public void close(DcReason reason) {
+    // We cannot communicate with the server anymore, so close all virtual connections
+    if (isConnected()) closeAllConnections(reason);
+  }
+  
   public void closeAllConnections(DcReason reason) {
     for (VirtualConnection c : connections) c.closeQuietly(reason);
     clearConnections();
@@ -118,7 +150,9 @@ public abstract class ProxyClient extends Client implements NetListener {
   
   public void addConnection(VirtualConnection con) {
     connectionsMap.put(con.getID(), con);
-    connections = Structs.add(connections, con);
+    // Connections are added at the start instead of end
+    //connections = Structs.add(connections, con);
+    connections = Structs.insert(connections, 0, con);
   }
   
   public void removeConnection(VirtualConnection con) {
@@ -145,13 +179,20 @@ public abstract class ProxyClient extends Client implements NetListener {
     return tcp ? sendTCP(p) : sendUDP(p);
   }
   
+  /** 
+   * Can be used notify the server to close the connection when not created by the proxy. 
+   * Indeed, this will not trigger callbacks.
+   */
+  protected void close(int conId, DcReason reason) {
+    sendTCP(makeConClosePacket(conId, reason));
+  }
+  
   public void close(VirtualConnection con, DcReason reason) {
     boolean wasConnected = con.isConnected();
     con.setConnected0(false);
     if(!wasConnected) return;
     
-    Object p = makeConClosePacket(con.getID(), reason);
-    sendTCP(p);
+    close(con.getID(), reason);
     con.notifyDisconnected0(reason);
   }
   
@@ -162,33 +203,13 @@ public abstract class ProxyClient extends Client implements NetListener {
   }
 
   // end region
-  // region listener
-  
-  @Override
-  public void connected(Connection connection) {
-    connecting = false;
-  }
-  
-  @Override
-  public void disconnected(Connection connection, DcReason reason) {
-    // We cannot communicate with the server anymore, so close all virtual connections
-    closeAllConnections(reason);
-  }
-  
-  @Override
-  public abstract void received(Connection connection, Object object);
-  
-  @Override
-  public void idle(Connection connection) {}
-  
-  // end region
   // region notifier
   
-  protected VirtualConnection conConnected(int conId) {
+  protected VirtualConnection conConnected(int conId, long addressHash) {
     VirtualConnection con = getConnection(conId);
     if (con == null) {
-      con = new VirtualConnection(this, conId);
-      con.addListener(dispatchListener);
+      con = new VirtualConnection(this, conId, addressHash);
+      if (conListener != null) con.addListener(conListener);
       addConnection(con);  
     }
     con.notifyConnected0();

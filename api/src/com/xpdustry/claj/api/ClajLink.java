@@ -17,12 +17,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.client;
+package com.xpdustry.claj.api;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import arc.util.serialization.Base64Coder;
+import com.xpdustry.claj.common.util.Strings;
 
 
 /**
@@ -47,12 +47,12 @@ public class ClajLink {
   public ClajLink(String host, int port, String roomId) {
     if (host == null || host.isEmpty()) throw new IllegalArgumentException("Missing host");
     if (port == -1) throw new IllegalArgumentException("Missing port");
-    if (roomId != null && roomId.startsWith("/")) roomId = roomId.substring(1);
+    if (roomId != null && roomId.indexOf('/') == 0) roomId = roomId.substring(1);
     if (roomId == null || roomId.isEmpty()) throw new IllegalArgumentException("Missing room id");
     
     this.host = host;
     this.port = port;
-    try { this.roomId = bytesToLong(Base64Coder.decode(roomId, Base64Coder.urlsafeMap)); }
+    try { this.roomId = Strings.base64ToLong(roomId); }
     catch (Exception e) { throw /*e;*/new IllegalArgumentException("Invalid room id"); }
     if (this.roomId == ClajProxy.UNCREATED_ROOM) 
       throw new IllegalArgumentException("Invalid room id");
@@ -72,7 +72,7 @@ public class ClajLink {
     this.roomId = roomId;
     if (this.roomId == ClajProxy.UNCREATED_ROOM) 
       throw new IllegalArgumentException("Invalid room id");
-    this.encodedRoomId = new String(Base64Coder.encode(longToBytes(roomId), Base64Coder.urlsafeMap));
+    this.encodedRoomId = new String(Strings.longToBase64(roomId));
 
     try { uri = new URI(PROTOCOL, null, host, port, '/'+encodedRoomId, null, null); }
     // This error can only happen when the host is invalid
@@ -83,6 +83,17 @@ public class ClajLink {
   public String toString() {
     return uri.toString();
   }
+  
+  @Override
+  public boolean equals(Object o) { 
+    return this == o || o instanceof ClajLink link &&
+           host.equals(link.host) && port == link.port && roomId == link.roomId;
+  }
+  
+  @Override
+  public int hashCode() {
+    return (host.hashCode() * 31 + port) * 31 + Long.hashCode(roomId);
+  }  
   
   /** @throws IllegalArgumentException if the link is invalid */
   public static ClajLink fromString(String link) {
@@ -105,27 +116,5 @@ public class ClajLink {
       throw new IllegalArgumentException("Not a CLaJ link");
 
     return new ClajLink(uri.getHost(), uri.getPort(), uri.getPath());
-  }
-  
-  
-  /** Damn, why there are no native way to convert a long to a byte array? */
-  private static byte[] longToBytes(long l) {
-    byte[] result = new byte[Long.BYTES];
-    for (int i=Long.BYTES-1; i>=0; i--) {
-        result[i] = (byte)(l & 0xFF);
-        l >>= 8;
-    }
-    return result;
-  }
-  
-  /** Damn, why there are no native way to convert a bytes array to a long? */
-  private static long bytesToLong(final byte[] b) {
-    if (b.length != Long.BYTES) throw new IndexOutOfBoundsException("must be " + Long.BYTES + " bytes");
-    long result = 0;
-    for (int i=0; i<Long.BYTES; i++) {
-        result <<= 8;
-        result |= (b[i] & 0xFF);
-    }
-    return result;
   }
 }

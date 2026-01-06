@@ -22,6 +22,7 @@ package com.xpdustry.claj.server;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import arc.Core;
 import arc.Files.FileType;
 import arc.files.Fi;
 import arc.net.ArcNet;
@@ -29,9 +30,9 @@ import arc.util.ColorCodes;
 import arc.util.Log;
 import arc.util.Strings;
 
+import com.xpdustry.claj.common.ClajPackets;
 import com.xpdustry.claj.server.plugin.Plugins;
-import com.xpdustry.claj.server.util.EventLoop;
-import com.xpdustry.claj.server.util.NetworkSpeed;
+import com.xpdustry.claj.server.util.*;
 
 
 public class ClajVars {
@@ -45,29 +46,38 @@ public class ClajVars {
   public static Fi pluginsDirectory = workingDirectory.child("plugins");
   
   public static Plugins plugins;
+  public static Autosaver autosave;
   public static EventLoop loop;
   public static NetworkSpeed networkSpeed;
   
   public static final String[] tags = {"&lc&fb[D]&fr", "&lb&fb[I]&fr", "&ly&fb[W]&fr", "&lr&fb[E]", ""};
-  public static final DateTimeFormatter dateformat = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
-  public static final String logFormat = "&lk&fb[@]&fr @ @&fr";
+  public static DateTimeFormatter dateformat = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+  public static String logFormat = "&lk&fb[@]&fr @ @&fr";
+  public static String textFormat = "&fb&lb@&fr";
 
   public static void init() {
     // Init event loop
-    ClajVars.loop = new EventLoop();
-    ClajVars.loop.start();
+    loop = new EventLoop();
+    loop.start();
     
-    // Load settings and init server
+    // Init auto saver
+    autosave = new Autosaver();
+    Core.app.addListener(autosave);
+    
+    // Load settings and register packets
     ClajConfig.load();
     Log.level = ClajConfig.debug ? Log.LogLevel.debug : Log.LogLevel.info; // set log level
-    ClajVars.networkSpeed = new NetworkSpeed(8);
-    ClajVars.relay = new ClajRelay(ClajVars.networkSpeed);      
-    ClajVars.control = new ClajControl();
+    ClajPackets.init();
+    
+    // Init server
+    networkSpeed = new NetworkSpeed(8);
+    relay = new ClajRelay(networkSpeed);      
+    control = new ClajControl();
 
     // Load plugins
-    ClajVars.plugins = new Plugins();
-    ClajVars.pluginsDirectory.mkdirs();
-    ClajVars.plugins.load();
+    pluginsDirectory.mkdirs();
+    plugins = new Plugins();
+    plugins.load();
   }  
   
   public static void initLogger() {
@@ -82,18 +92,26 @@ public class ClajVars {
       Log.err(e); 
     };
     
+    Log.LogHandler log = (level, text) -> {
+      //err has red text instead of reset.
+      if(level == Log.LogLevel.err) text = text.replace(ColorCodes.reset, ColorCodes.lightRed + ColorCodes.bold);
+
+      text = Log.format(Strings.format(logFormat, dateformat.format(LocalDateTime.now()), tags[level.ordinal()], text));
+      System.out.println(text);  
+    };
+    
     Log.logger = (level, text) -> {
-      for (String line : text.split("\n")) {
-        //err has red text instead of reset.
-        if(level == Log.LogLevel.err) line = line.replace(ColorCodes.reset, ColorCodes.lightRed + ColorCodes.bold);
-  
-        line = Log.format(Strings.format(logFormat, dateformat.format(LocalDateTime.now()), tags[level.ordinal()], line));
-        System.out.println(line);          
-      }
+      int i = 0, nl = text.indexOf('\n');
+      while (nl >= 0) {
+        log.log(level, text.substring(i, nl));
+        i = nl + 1;
+        nl = text.indexOf('\n', i);
+      } 
+      log.log(level, i == 0 ? text : text.substring(i));
     };
     
     Log.formatter = (text, useColors, arg) -> {
-      text = Strings.format(text.replace("@", "&fb&lb@&fr"), arg);
+      text = Strings.format(text.replace("@", textFormat), arg);
       return useColors ? Log.addColors(text) : Log.removeColors(text);
     };  
   }

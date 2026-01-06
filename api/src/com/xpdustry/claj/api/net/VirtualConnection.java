@@ -17,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.client.proxy;
+package com.xpdustry.claj.api.net;
 
 import java.net.InetSocketAddress;
 
@@ -26,23 +26,30 @@ import arc.net.Connection;
 import arc.net.DcReason;
 import arc.net.EndPoint;
 import arc.net.NetListener;
-import arc.util.Structs;
+
+import com.xpdustry.claj.common.net.DispatchListener;
+import com.xpdustry.claj.common.util.AddressHasher;
 
 
 /** 
  * A connection that doesn't have a socket and buffer behind. <br>
  * Every writes is done to the proxy, and listeners are triggered by him. <br>
  * And some internal {@link Connection} states are exposed for more control.
+ * <p>
+ * This must not be used like a standard {@link Connection},
+ * as some internal states like listeners cannot be fully overridden.
  */
 public class VirtualConnection extends Connection {
-  /** The real client, aka the proxy. */
+  /** The real client, aka the proxy. */ 
   public final ProxyClient proxy;
   
-  /** {@link arc.net.Connection#id}. */
   protected final int id;
-  /** {@link arc.net.Connection#listeners}. */
-  protected NetListener[] listeners = {};
-  /** {@link arc.net.Connection#name}. */
+  protected final DispatchListener dispatcher = new DispatchListener(true);
+  /** 
+   * Fake address calculated using the hash of the real client address provided by the server. <br>
+   * TCP and UDP ports are always the same, so no need to have two InetSocketAddress.
+   */
+  protected final InetSocketAddress remoteAddress;
   protected String name;
 
   /** 
@@ -56,32 +63,41 @@ public class VirtualConnection extends Connection {
   /** The server will notify if the client is idling. */
   private volatile boolean isIdling = true;
 
-  public VirtualConnection(ProxyClient proxy, int id) {
+  public VirtualConnection(ProxyClient proxy, int id, long addressHash) {
     this.proxy = proxy;
     this.id = id;
-  }
-
-  @Override
-  public int sendTCP(Object object) {
-    return proxy.send(this, object, true);
-  }
-
-  @Override
-  public int sendUDP(Object object) {
-    return proxy.send(this, object, false);
-  }
-
-  @Override
-  public void close(DcReason reason) {
-    proxy.close(this, reason);
+    this.remoteAddress = new InetSocketAddress(AddressHasher.generate(addressHash), proxy.connectTcpPort);
   }
   
+  @Override
+  public int sendTCP(Object object) { return proxy.send(this, object, true); }
+  @Override
+  public int sendUDP(Object object) { return proxy.send(this, object, false); }
+  @Override
+  public void close(DcReason reason) { proxy.close(this, reason); }
   /** 
    * Close the connection without notify the server about that. <br>
    * Common use is when the server itself is saying to close the connection.
    */
-  public void closeQuietly(DcReason reason) {
-    proxy.closeQuietly(this, reason);
+  public void closeQuietly(DcReason reason) {  proxy.closeQuietly(this, reason); }
+
+  public NetListener[] getListeners() { return dispatcher.getListeners(); }
+  /** Only used when sending world data */
+  @Override
+  public void addListener(NetListener listener) { dispatcher.addListener(listener); }
+  /** Only used when sending world data */
+  @Override
+  public void removeListener(NetListener listener) { dispatcher.removeListener(listener); }
+  
+  public void notifyConnected0() { dispatcher.connected(this); }
+  public void notifyDisconnected0(DcReason reason) { dispatcher.disconnected(this, reason); }
+  public void notifyIdle0() { dispatcher.idle(this); }
+  public void notifyReceived0(Object object) { dispatcher.received(this, object); }
+  
+  public void setIdle() { isIdling = true; }
+  public void setConnected0(boolean isConnected) {
+    this.isConnected = isConnected;
+    if (isConnected && name == null) name = "Connection " + id;
   }
 
   @Override
@@ -101,9 +117,9 @@ public class VirtualConnection extends Connection {
   @Override
   public EndPoint getEndPoint() { return proxy.getEndPoint(); } // never used
   @Override 
-  public InetSocketAddress getRemoteAddressTCP() { return isConnected() ? proxy.getRemoteAddressTCP() : null; } 
+  public InetSocketAddress getRemoteAddressTCP() { return isConnected() ? remoteAddress : null; } 
   @Override
-  public InetSocketAddress getRemoteAddressUDP() { return isConnected() ? proxy.getRemoteAddressUDP() : null; }
+  public InetSocketAddress getRemoteAddressUDP() { return isConnected() ? remoteAddress : null;  }
   @Override
   public void setName(String name) { this.name = name; } // never used
   @Override
@@ -115,52 +131,4 @@ public class VirtualConnection extends Connection {
   public void setIdleThreshold(float idleThreshold) {} // never used
   @Override
   public String toString() { return name != null ? name : "Connection " + id; }
-
-  /** Only used when sending world data */
-  @Override
-  public void addListener(NetListener listener) {
-    if(listener == null) throw new IllegalArgumentException("listener cannot be null.");
-    if (Structs.contains(listeners, listener)) return;
-    listeners = Structs.add(listeners, listener);
-  }
-  
-  /** Only used when sending world data */
-  @Override
-  public void removeListener(NetListener listener) {
-    if(listener == null) throw new IllegalArgumentException("listener cannot be null.");
-    listeners = Structs.remove(listeners, listener);
-  }
-  
-  public void notifyConnected0() {
-    NetListener[] listeners = this.listeners;
-    for (NetListener l : listeners) l.connected(this);
-  }
-
-  public void notifyDisconnected0(DcReason reason) {
-    proxy.removeConnection(this);
-    NetListener[] listeners = this.listeners;
-    for (NetListener l : listeners) l.disconnected(this, reason);
-  }
-
-  public void setIdle() {
-    isIdling = true;
-  }
-      
-  public void notifyIdle0() {
-    NetListener[] listeners = this.listeners;
-    for (NetListener l : listeners) {
-      l.idle(this);
-      if (!isIdle()) break;
-    }
-  }
-  
-  public void notifyReceived0(Object object) {
-    NetListener[] listeners = this.listeners;
-    for (NetListener l : listeners) l.received(this, object);
-  }
-   
-  public void setConnected0(boolean isConnected) {
-    this.isConnected = isConnected;
-    if (isConnected && name == null) name = "Connection " + id;
-  }
 }

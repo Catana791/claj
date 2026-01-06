@@ -25,14 +25,15 @@ import arc.util.io.ByteBufferOutput;
 import com.xpdustry.claj.common.util.Strings;
 
 
+/** Note that the text will be truncated to {@code 1024} characters. */
 public class ClajTextMessagePacket extends DelayedPacket {
   public String message;
   
   protected void readImpl(ByteBufferInput read) {
-    message = Strings.readUTF(read);
+    message = Strings.truncate(Strings.readUTF(read), 1024);
   }
   
   public void write(ByteBufferOutput write) {
-    Strings.writeUTF(write, message);
+    Strings.writeUTF(write, Strings.truncate(message, 1024));
   }
 }

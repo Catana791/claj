@@ -21,14 +21,16 @@ package com.xpdustry.claj.client.dialogs;
 
 import arc.Core;
 import arc.input.KeyCode;
+import arc.util.Strings;
 import arc.util.Time;
 
 import mindustry.Vars;
 import mindustry.gen.Icon;
 import mindustry.ui.dialogs.BaseDialog;
 
-import com.xpdustry.claj.client.Claj;
-import com.xpdustry.claj.client.ClajLink;
+import com.xpdustry.claj.api.Claj;
+import com.xpdustry.claj.api.ClajLink;
+import com.xpdustry.claj.common.status.RejectReason;
 
 
 public class JoinViaClajDialog extends BaseDialog {
@@ -91,10 +93,20 @@ public class JoinViaClajDialog extends BaseDialog {
     });
     
     Time.runTask(2f, () -> 
-      Claj.joinRoom(link, () -> {
+      Claj.get().joinRoom(link, () -> {
         Vars.ui.join.hide();
         hide();
-      })
+      }, r -> {
+        switch (r) {
+          default:
+            //TODO: show password          
+          case serverClosing:
+            hide(); 
+          case roomNotFound:
+            if (r != RejectReason.passwordRequired)
+              Vars.ui.showErrorMessage("@claj.reject." + Strings.camelToKebab(r.name()));
+        }
+      }, Vars.net::handleException)
     );
   }
   

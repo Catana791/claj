@@ -46,15 +46,16 @@ public class ClajConfig {
   @SuppressWarnings("unchecked")
   public static void load() {
     // Load file
-    if (settings == null) settings = new JsonSettings(new Fi(fileName, Files.FileType.local));
+    if (settings == null) 
+      settings = new JsonSettings(new Fi(fileName, Files.FileType.local), true, true, true, false);
     settings.load();
     
     // Load values
-    debug = settings.getBool("debug", debug);
-    spamLimit = settings.getInt("spam-limit", spamLimit);
-    warnDeprecated = settings.getBool("warn-deprecated", warnDeprecated);
-    warnClosing = settings.getBool("warn-closing", warnClosing);
-    blacklist = settings.get("blacklist", Seq.class, String.class, blacklist);
+    debug = settings.getBool("debug", false);
+    spamLimit = settings.getInt("spam-limit", 300);
+    warnDeprecated = settings.getBool("warn-deprecated", true);
+    warnClosing = settings.getBool("warn-closing", true);
+    blacklist = settings.get("blacklist", Seq.class, String.class, Seq::new);
     
     // Will create the file of not existing yet.
     save(); 

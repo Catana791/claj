@@ -6,8 +6,8 @@ import arc.util.Threads;
 
 
 public class PluginClassLoader extends ClassLoader {
-  private Seq<ClassLoader> children = new Seq<>();
-  private ThreadLocal<Boolean> inChild = Threads.local(() -> Boolean.FALSE);
+  private final Seq<ClassLoader> children = new Seq<>();
+  private final ThreadLocal<Boolean> inChild = Threads.local(() -> Boolean.FALSE);
 
   public PluginClassLoader(ClassLoader parent) {
     super(parent);

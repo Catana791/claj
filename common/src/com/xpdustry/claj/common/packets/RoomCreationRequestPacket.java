@@ -29,10 +29,10 @@ public class RoomCreationRequestPacket extends DelayedPacket {
   public String version;
   
   protected void readImpl(ByteBufferInput read) {
-    if (read.buffer.hasRemaining()) version = Strings.readUTF(read);
+    if (read.buffer.hasRemaining()) version = Strings.truncate(Strings.readUTF(read), 16);
   }
   
   public void write(ByteBufferOutput write) {
-    Strings.writeUTF(write, version);
+    Strings.writeUTF(write, Strings.truncate(version, 16));
   }
 }

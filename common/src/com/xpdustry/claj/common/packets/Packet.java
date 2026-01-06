@@ -29,6 +29,17 @@ public interface Packet {
   default void read(ByteBufferInput read) {}    
   default void write(ByteBufferOutput write) {}
   
+  @SuppressWarnings("unchecked")
+  default <T extends Packet> T r(ByteBufferInput read) {
+    read(read);
+    return (T)this;
+  }
+  @SuppressWarnings("unchecked")
+  default <T extends Packet> T w(ByteBufferOutput write) { 
+    write(write);
+    return (T)this;
+  }
+  
   /** Called when handling the packet (after reading), in another thread. */
   default void handled() {}
 

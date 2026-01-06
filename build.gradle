@@ -63,12 +63,23 @@ project(":common") {
   }
 }
 
+project(":api") {
+  dependencies {
+    implementation project(":common")
+    compileOnly toxopid.dependencies.arcCore
+    compileOnly "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
+  }
+}
+
 project(":client") {
   toxopid.platforms = [ModPlatform.DESKTOP, ModPlatform.ANDROID]
   // implementation dependency is not enouth, classes are not included into dex
-  sourceSets.main.java.srcDirs += project(":common").sourceSets.main.java.srcDirs
+  sourceSets.main.java.srcDirs += project(":common").sourceSets.main.java.srcDirs + 
+                                  project(":api").sourceSets.main.java.srcDirs
   
   dependencies {
+    //implementation project(":common")
+    //implementation project(":api")
     compileOnly toxopid.dependencies.arcCore
     compileOnly toxopid.dependencies.mindustryCore
   }
