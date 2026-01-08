@@ -20,21 +20,16 @@
 package com.xpdustry.claj.common.packets;
 
 import arc.util.io.ByteBufferInput;
-import arc.util.io.ByteBufferOutput;
-
-import com.xpdustry.claj.common.status.MessageType;
 
 
-public class ClajMessagePacket extends DelayedPacket {
-  public MessageType message;
-  
+public class ServerInfoPacket extends RoomCreationRequestPacket {
   @Override
-  protected void readImpl(ByteBufferInput read) {
-    message = MessageType.all[read.readByte()]; 
-  }
-  
-  @Override
-  public void write(ByteBufferOutput write) {
-    write.writeByte(message.ordinal());
+  protected void readImpl(ByteBufferInput read) { 
+    // By default, arc server is configured to reply an empty buffer.
+    // This can be used to determine whether this is an old CLaJ server or not.
+    // Because on older versions, no discovery was configured.
+    // Note: since an empty buffer can be received, this packet is also hard-coded into the api serializer.
+    if (!read.buffer.hasRemaining()) majorVersion = 0;
+    else super.readImpl(read);
   }
 }

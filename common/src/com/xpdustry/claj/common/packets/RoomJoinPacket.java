@@ -25,13 +25,17 @@ import arc.util.io.ByteBufferOutput;
 public class RoomJoinPacket extends RoomLinkPacket {
   public short password = -1;
   
+  @Override
   protected void readImpl(ByteBufferInput read) {
     super.readImpl(read);
+    // Make it compatible with older versions where room password wasn't here
+    // This will only work if the room doesn't have a password set
     password = read.buffer.hasRemaining() ? read.readShort() : -1;
   }
   
+  @Override
   public void write(ByteBufferOutput write) {
     super.write(write);
-    if (password < 0) write.writeShort(password);
+    write.writeShort(password);
   }
 }

@@ -42,7 +42,10 @@ public class ClajServers {
         online.put(e.key, e.value.asString());
       Core.app.post(done);
     }, t -> Core.app.post(() -> failed.get(t)));
-    //online.put("Chaotic Neutral", "n3.xpdustry.com:7025");
+    /*
+    online.put("Chaotic Neutral", "n3.xpdustry.com:7026");
+    done.run();
+    */
   }
   
   @SuppressWarnings("unchecked")

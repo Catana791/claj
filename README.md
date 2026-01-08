@@ -76,6 +76,6 @@ Supported plugin properties:
 * ``description`` *[optional]*: A short description of what the plugin does.
 * ``version`` *[optional]*: The plugin's version.
 * ``repo`` *[optional]*: The plugin's GitHub repository, formatted like that: `username/projectname`.
-* ``main`` *[required]*: The plugin's fully qualified main class. Must extend ``com.xpdustry.claj.server.plugin.Plugin``.
+* ``main`` *[required]*: The plugin's fully qualified main class. Must implements ``com.xpdustry.claj.server.plugin.Plugin``.
 * ``dependencies`` *[optional]*: The list of required dependencies. ([Further information](https://mindustrygame.github.io/wiki/modding/1-modding/#dependencies))
 * ``softDependencies`` *[optional]*: The list of optional dependencies.

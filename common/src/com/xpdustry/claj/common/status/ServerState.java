@@ -17,15 +17,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.client.dialogs;
-
-import mindustry.ui.dialogs.BaseDialog;
+package com.xpdustry.claj.common.status;
 
 
-public class RoomBrowserDialog extends BaseDialog {
-  public RoomBrowserDialog() {
-    super("@claj.browser.title")
-    
-    ;
-  }
-}
+public record ServerState(
+  String address, 
+  int port, 
+  int majorVersion, 
+  int ping
+) {}

@@ -38,6 +38,7 @@ public class ConnectionPacketWrapPacket extends ConnectionWrapperPacket {
   
   public boolean isTCP;
   
+  @Override
   protected void readImpl(ByteBufferInput read) {
     super.readImpl(read);
     isTCP = read.readBoolean();
@@ -46,6 +47,7 @@ public class ConnectionPacketWrapPacket extends ConnectionWrapperPacket {
     serializer.read(this, read);
   }
   
+  @Override
   public void write(ByteBufferOutput write) {
     super.write(write);
     write.writeBoolean(isTCP);

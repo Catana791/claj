@@ -25,10 +25,12 @@ public enum CloseReason {
   error,
   /** Closed without reason. */
   closed,
-  /** Incompatible claj client. */
+  /** Incompatible CLaJ client. */
   obsoleteClient, 
-  /** Old claj version. */
-  outdatedVersion,
+  /** Old CLaJ client. */
+  outdatedClient,
+  /** Old CLaJ server. */
+  outdatedServer,
   /** Server is shutting down. */
   serverClosed;
   

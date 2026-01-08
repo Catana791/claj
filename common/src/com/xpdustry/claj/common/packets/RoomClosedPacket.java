@@ -28,10 +28,12 @@ import com.xpdustry.claj.common.status.CloseReason;
 public class RoomClosedPacket extends DelayedPacket {
   public CloseReason reason;
   
+  @Override
   protected void readImpl(ByteBufferInput read) {
     reason = CloseReason.all[read.readByte()]; 
   }
   
+  @Override
   public void write(ByteBufferOutput write) {
     write.writeByte(reason.ordinal());
   }

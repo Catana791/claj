@@ -27,10 +27,12 @@ public class RoomLinkPacket extends DelayedPacket {
   /** {@code -1} means no room. */
   public long roomId = -1;
   
+  @Override
   protected void readImpl(ByteBufferInput read) {
     roomId = read.readLong();
   }
   
+  @Override
   public void write(ByteBufferOutput write) {
     write.writeLong(roomId);
   }

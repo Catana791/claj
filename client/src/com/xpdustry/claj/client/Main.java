@@ -28,26 +28,18 @@ import mindustry.mod.Mod;
 import mindustry.mod.Mods;
 
 import com.xpdustry.claj.api.Claj;
-import com.xpdustry.claj.client.dialogs.*;
+
 
 public class Main extends Mod {
   public static MindustryClajProvider provider;
-  public static JoinViaClajDialog joinDialog;
-  public static CreateClajRoomDialog createDialog;
-  public static RoomPasswordDialog passwordDialog;
-  public static RoomBrowserDialog browserDialog;
-  
+
   @Override
   public void init() {
     provider = new MindustryClajProvider();
     Claj.init(provider);
     ClajUpdater.schedule();
     initEvents();
-
-    joinDialog = new JoinViaClajDialog();
-    createDialog = new CreateClajRoomDialog();
-    passwordDialog = new RoomPasswordDialog();
-    browserDialog = new RoomBrowserDialog();
+    ClajUi.init();
   }
   
   /** Automatically closes the rooms when quitting the game. */

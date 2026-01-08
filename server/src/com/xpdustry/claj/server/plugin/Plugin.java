@@ -8,7 +8,7 @@ import com.xpdustry.claj.server.ClajVars;
 import com.xpdustry.claj.server.util.JsonSettings;
 
 
-public abstract class Plugin {
+public interface Plugin {
   /** @return a new logger for this plugin. The plugin is automatically determined using the caller class. */
   public static PluginLogger getLogger() {
     return ClajVars.plugins.getLogger();
@@ -31,23 +31,23 @@ public abstract class Plugin {
   }  
   
   /** @return the folder where configuration files for this mod should go. */
-  public Fi getConfigFolder() {
+  default Fi getConfigFolder() {
     return ClajVars.plugins.getConfigFolder(this);
   }
   
-  /** @return the config file for this plugin, as the file 'plugins/[plugin-name]/config.json'. */
-  public JsonSettings getConfig() {
+  /** @return a settings handle for this plugin of file {@code 'plugins/<plugin-name>/config.json'}. */
+  default JsonSettings getConfig() {
     return ClajVars.plugins.getConfig(this);
   }
   
   /** @return the meta data of this plugin .*/
-  public Plugins.PluginMeta getMeta() {
+  default Plugins.PluginMeta getMeta() {
     return ClajVars.plugins.getMeta(this);
   }
 
   /** Called after all plugins have been created and commands have been registered. */
-  public void init() {}
+  default void init() {}
 
   /** Register any commands. */
-  public void registerCommands(CommandHandler handler) {}
+  default void registerCommands(CommandHandler handler) {}
 }

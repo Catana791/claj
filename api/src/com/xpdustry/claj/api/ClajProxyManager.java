@@ -91,6 +91,10 @@ public class ClajProxyManager {
   }
   
   public int findFreeI() {
+    if (!hasCreatedProxies()) {
+      get();
+      return 0;
+    }
     // First, try to find a free proxy
     for (int i=0; i<proxies.length; i++) {
       if (proxies[i] != null && !isBusy(i)) return i;
@@ -168,7 +172,7 @@ public class ClajProxyManager {
    * @return the proxy on which the room was opened. 
    *         (does not guarantee that the room is already open or will be.)
    */
-  public ClajProxy createRoom(String ip, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
+  public ClajProxy createRoom(String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
                          Cons<Throwable> failed) {
     int index = findFreeI();
     if (index == -1) {
@@ -177,10 +181,10 @@ public class ClajProxyManager {
       return null;
     }
     
-    return createRoom(index, ip, port, created, closed, failed);
+    return createRoom(index, host, port, created, closed, failed);
   }
   
-  public ClajProxy createRoom(int index, String ip, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
+  public ClajProxy createRoom(int index, String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
                          Cons<Throwable> failed) {
     if (isBusy(index)) {
       failed.get(new RuntimeException("Room is already created, please close it before"));
@@ -190,17 +194,13 @@ public class ClajProxyManager {
     reserved[index] = true;
       
     provider.getExecutor().submit(() -> {
-      proxy.connect(ip, port, 
-        id -> created.get(new ClajLink(ip, port, id)), 
-        reason -> {
-          closed.get(reason);
-          reserved[index] = false;
-        }, 
-        error -> {
-          failed.get(error);
-          reserved[index] = false;
-        }
-      );
+      proxy.connect(host, port, created, reason -> {
+        if (closed != null) closed.get(reason);
+        reserved[index] = false;
+      }, error -> {
+        if (failed != null) failed.get(error);
+        reserved[index] = false;
+      });
     });
     
     return proxy;

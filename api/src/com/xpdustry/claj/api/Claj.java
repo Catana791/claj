@@ -52,7 +52,7 @@ public class Claj {
    * @param pingers number of pooled pingers
    */
   public static Claj init(ClajProvider provider, int proxies, int pingers) {
-    if (initialized()) throw new IllegalStateException("Claj already initialized");
+    if (initialized()) throw new IllegalStateException("Claj is already initialized");
     ClajPackets.init(); // Register packets first
     ConnectionPacketWrapPacket.serializer = provider.getPacketWrapperSerializer();
     INSTANCE = new Claj(provider, new ClajProxyManager(provider, proxies), 
@@ -86,9 +86,9 @@ public class Claj {
     pingers.dispose();
   }
 
-  public void createRoom(String ip, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
+  public void createRoom(String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
                          Cons<Throwable> failed) {
-    proxies.createRoom(ip, port, created, closed, failed);
+    proxies.createRoom(host, port, created, closed, failed);
   }
 
   public void joinRoom(ClajLink link, Runnable success, Cons<RejectReason> reject, Cons<Exception> failed) {
@@ -100,12 +100,12 @@ public class Claj {
     pingers.joinRoom(link, password, success, reject, failed);
   }
 
-  public void pingHost(String ip, int port, Cons<Integer> success, Cons<Exception> failed) {
-    pingers.pingHost(ip, port, success, failed);
+  public void pingHost(String host, int port, Cons<ServerState> success, Cons<Exception> failed) {
+    pingers.pingHost(host, port, success, failed);
   }
   
-  public void serverRooms(String ip, int port, Cons<ClajRoom> room, Cons<GameState> state, Runnable done, 
+  public void serverRooms(String host, int port, Cons<ClajRoom> room, Cons<Long> updated, Runnable done, 
                           Cons<Exception> failed) {
-    pingers.serverRooms(ip, port, room, state, done, failed);
+    pingers.serverRooms(host, port, room, updated, done, failed);
   }
 }

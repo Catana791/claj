@@ -352,7 +352,7 @@ public class Plugins {
         context.invalid.put(dependency.name, PluginState.circularDependencies);
         return false;
           
-      // If dependency present, resolve it, or if it's not required, ignore it
+      // If dependency present, resolve it, or if it's not required, ignore
       } else if (context.dependencies.containsKey(dependency.name)) {
         if (!context.ordered.contains(dependency.name) && !resolve(dependency.name, context) && dependency.required) {
           context.invalid.put(element, PluginState.incompleteDependencies);
@@ -422,10 +422,11 @@ public class Plugins {
       loader = JarLoader.load(sourceFile, mainLoader);
       mainLoader.addChild(loader);
       Class<?> main = Class.forName(mainClass, true, loader);
-      Class<?> mainParent = main.getSuperclass();
 
+      //TODO: test
       //detect plugins that incorrectly package CLaJ in the jar
-      if (mainParent == Plugin.class && mainParent.getClassLoader() != Plugin.class.getClassLoader()) 
+      //Note: This works because JarLoader uses a child-first loading strategy.
+      if (Class.forName(Plugin.class.getName(), false, loader) != Plugin.class) 
         throw new PluginLoadException(
           "This plugin has loaded CLaJ dependencies from its own class loader. " +
           "You are incorrectly including CLaJ dependencies in the plugin JAR! " +

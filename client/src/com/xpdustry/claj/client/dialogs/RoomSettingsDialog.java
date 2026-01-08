@@ -17,24 +17,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.common.packets;
+package com.xpdustry.claj.client.dialogs;
 
-import arc.util.io.ByteBufferInput;
-import arc.util.io.ByteBufferOutput;
-
-import com.xpdustry.claj.common.status.MessageType;
+import mindustry.ui.dialogs.BaseDialog;
 
 
-public class ClajMessagePacket extends DelayedPacket {
-  public MessageType message;
-  
-  @Override
-  protected void readImpl(ByteBufferInput read) {
-    message = MessageType.all[read.readByte()]; 
-  }
-  
-  @Override
-  public void write(ByteBufferOutput write) {
-    write.writeByte(message.ordinal());
+public class RoomSettingsDialog extends BaseDialog {
+  public RoomSettingsDialog() {
+    super("@claj.settings.title");
   }
 }

@@ -19,18 +19,12 @@
 
 package com.xpdustry.claj.api;
 
-import java.nio.ByteBuffer;
-
 import arc.Core;
 import arc.func.Cons;
 import arc.net.*;
-import arc.util.io.ByteBufferInput;
-import arc.util.io.ByteBufferOutput;
 
 import com.xpdustry.claj.api.net.ProxyClient;
-import com.xpdustry.claj.common.*;
 import com.xpdustry.claj.common.ClajPackets.*;
-import com.xpdustry.claj.common.net.FrameworkSerializer;
 import com.xpdustry.claj.common.packets.*;
 import com.xpdustry.claj.common.status.*;
 
@@ -44,20 +38,19 @@ public class ClajProxy extends ProxyClient {
   public boolean isPublic, isProtected;
   public short roomPassword;
   
-  protected Cons<Long> roomCreated;
+  protected Cons<ClajLink> roomCreated;
   protected Cons<CloseReason> roomClosed;
   protected long roomId = UNCREATED_ROOM;
 
   public ClajProxy(ClajProvider provider) {
-    super(32768, 16384, new Serializer(), provider.getConnectionListener());
+    super(32768, 16384, new ClajSerializer(), provider.getConnectionListener());
     this.provider = provider;
     
     receiver.handle(Connect.class, this::requestRoomId);
     receiver.handle(Disconnect.class, () -> runRoomClose(CloseReason.error));
     
     receiver.handle(ConnectionJoinPacket.class, p -> {
-      if (!roomCreated()) return;
-      if (getConnection(p.conID) != null) return;
+      if (!roomCreated() || getConnection(p.conID) != null) return;
       // Check if the link is the right
       if (p.roomId != roomId) close(p.conID, DcReason.error);
       else conConnected(p.conID, p.addressHash);
@@ -73,17 +66,10 @@ public class ClajProxy extends ProxyClient {
     });
     
     receiver.handle(RoomClosedPacket.class, p -> {
-      // Ignore if room is already closed
-      if (!roomCreated()) return;
-      runRoomClose(p.reason);
+      if (!roomCreated()) runRoomClose(p.reason);
     });
     receiver.handle(RoomLinkPacket.class, p -> {
-      // Ignore if room is already created
-      if (roomCreated()) return;
-      roomId = p.roomId;
-      // -1 is not allowed since it's used to specify an uncreated room
-      if (roomId == UNCREATED_ROOM) return;
-      runRoomCreated(); 
+      if (!roomCreated()) runRoomCreated(p.roomId); 
     });
     receiver.handle(RoomInfoRequestPacket.class, p -> {
       if (p.roomId == roomId) notifyGameState();
@@ -101,7 +87,7 @@ public class ClajProxy extends ProxyClient {
   }
   
   /** This method must be used instead of others connect methods */
-  public void connect(String host, int port, Cons<Long> created, Cons<CloseReason> closed, Cons<Throwable> failed) {
+  public void connect(String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed, Cons<Throwable> failed) {
     try { 
       connect(host, port); 
       roomCreated = created;
@@ -117,10 +103,13 @@ public class ClajProxy extends ProxyClient {
   protected <T> void postTask(Cons<T> consumer, T object) { postTask(() -> consumer.get(object)); }
   protected void postTask(Runnable run) { Core.app.post(run); }
   
-  protected void runRoomCreated() {
+  protected void runRoomCreated(long roomId) {
     ignoreExceptions = true;
+    this.roomId = roomId;
+    // -1 is not allowed since it's used to specify an uncreated room
+    if (roomId == UNCREATED_ROOM) return;
     if (roomCreated == null) return;
-    postTask(roomCreated, roomId);
+    postTask(roomCreated, getLink());
   }
   
   /** This also resets room id and removes callbacks. */
@@ -142,9 +131,8 @@ public class ClajProxy extends ProxyClient {
     return roomId != UNCREATED_ROOM;
   }
   
-  /** @apiNote untested. */
   public ClajLink getLink() {
-    return new ClajLink(getRemoteAddressTCP().getHostString(), getRemoteAddressTCP().getPort(), roomId);
+    return roomCreated() ? new ClajLink(connectHost.getHostName(), connectTcpPort, roomId) : null;
   }
   
   public GameState getState() {
@@ -191,9 +179,9 @@ public class ClajProxy extends ProxyClient {
     return p;
   }
   
-  protected Object makeRoomCreatePacket(String version) {
+  protected Object makeRoomCreatePacket(int majorVersion) {
     RoomCreationRequestPacket p = new RoomCreationRequestPacket();
-    p.version = version;
+    p.majorVersion = majorVersion;
     return p;
   }
   
@@ -216,53 +204,5 @@ public class ClajProxy extends ProxyClient {
     p.conID = conId;
     p.reason = reason;
     return p;
-  }
-  
-  
-  public static class Serializer implements NetSerializer, FrameworkSerializer {
-    //maybe faster without ThreadLocal?
-    protected final ByteBufferInput read = new ByteBufferInput();
-    protected final ByteBufferOutput write = new ByteBufferOutput();
-
-    @Override
-    public Object read(ByteBuffer buffer) {
-      switch (buffer.get()) {
-        case ClajNet.frameworkId: 
-          return readFramework(buffer);
-        
-        case ClajNet.oldId:
-          throw new ArcNetException("Received a packet from the old CLaJ protocol");
-          
-        case ClajNet.id:
-          read.buffer = buffer;
-          Packet packet = ClajNet.newPacket(buffer.get());
-          packet.read(read);
-          return packet;
-          
-        default:
-          buffer.position(buffer.position()-1);
-          throw new ArcNetException("Unknown protocol id: " + buffer.get());
-      }
-    }
-    
-    @Override
-    public void write(ByteBuffer buffer, Object object) {
-      if (object instanceof ByteBuffer buf) {
-        buffer.put(buf);
-        
-      } else if (object instanceof FrameworkMessage framework) {
-        buffer.put(ClajNet.frameworkId);
-        writeFramework(buffer, framework);
-
-      } else if (object instanceof Packet packet) {
-        write.buffer = buffer;
-        if (!(object instanceof RawPacket)) 
-          buffer.put(ClajNet.id).put(ClajNet.getId(packet));
-        packet.write(write);
-        
-      } else {
-        throw new ArcNetException("Unknown packet type: " + object.getClass());
-      }
-    }
   }
 }

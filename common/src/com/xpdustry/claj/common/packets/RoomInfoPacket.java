@@ -33,6 +33,7 @@ public class RoomInfoPacket extends RoomLinkPacket {
   /** {@code null} if the room is private or no state was received from the host. */
   public GameState state;
 
+  @Override
   protected void readImpl(ByteBufferInput read) {
     roomId = read.readLong();
     if (read.readBoolean()) return;
@@ -50,6 +51,7 @@ public class RoomInfoPacket extends RoomLinkPacket {
     );
   }  
  
+  @Override
   public void write(ByteBufferOutput write) {
     write.writeLong(roomId);
     write.writeBoolean(state == null);

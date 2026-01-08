@@ -29,10 +29,12 @@ import com.xpdustry.claj.common.util.Strings;
 public class ClajTextMessagePacket extends DelayedPacket {
   public String message;
   
+  @Override
   protected void readImpl(ByteBufferInput read) {
     message = Strings.truncate(Strings.readUTF(read), 1024);
   }
   
+  @Override
   public void write(ByteBufferOutput write) {
     Strings.writeUTF(write, Strings.truncate(message, 1024));
   }

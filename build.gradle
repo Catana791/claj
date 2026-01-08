@@ -22,6 +22,7 @@ allprojects {
   sourceSets.main.java.srcDirs = ["src"]
   sourceSets.main.resources.srcDirs = ["resources"]
   toxopid.compileVersion = "v${metadata.minGameVersion}"
+  ext.arcNet = "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
   
   repositories {
     mavenCentral()
@@ -59,7 +60,7 @@ allprojects {
 project(":common") {
   dependencies {
     compileOnly toxopid.dependencies.arcCore
-    compileOnly "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
+    compileOnly arcNet
   }
 }
 
@@ -67,21 +68,24 @@ project(":api") {
   dependencies {
     implementation project(":common")
     compileOnly toxopid.dependencies.arcCore
-    compileOnly "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
+    compileOnly arcNet
   }
 }
 
 project(":client") {
   toxopid.platforms = [ModPlatform.DESKTOP, ModPlatform.ANDROID]
-  // implementation dependency is not enouth, classes are not included into dex
-  sourceSets.main.java.srcDirs += project(":common").sourceSets.main.java.srcDirs + 
-                                  project(":api").sourceSets.main.java.srcDirs
-  
+
   dependencies {
-    //implementation project(":common")
-    //implementation project(":api")
+    implementation project(":common")
+    implementation project(":api")
     compileOnly toxopid.dependencies.arcCore
     compileOnly toxopid.dependencies.mindustryCore
+  }
+  
+  jar {
+    from {
+      configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
   }
 
   mergeJar {
@@ -139,13 +143,13 @@ project(":client") {
 }
 
 project(":server") {
-  project.ext.mainClassName = "com.xpdustry.claj.server.Main"
+  ext.mainClassName = "com.xpdustry.claj.server.Main"
   toxopid.platforms = [ModPlatform.SERVER]
 
   dependencies {
     implementation project(":common")
     implementation toxopid.dependencies.arcCore
-    implementation "com.github.Anuken.Arc:arcnet:${toxopid.compileVersion}" //toxopid.dependencies.arcnet
+    implementation arcNet
     implementation toxopid.dependencies.arcHeadless
   }
   
@@ -180,6 +184,7 @@ project(":server") {
   }
 }
 
+build.dependsOn "client:buildV8"
 task buildAll(type: Jar, dependsOn: ["client:build", "client:buildV8", "server:build"]) {}
 
 

@@ -33,12 +33,12 @@ import com.xpdustry.claj.api.ClajLink;
 import com.xpdustry.claj.common.status.RejectReason;
 
 
-public class JoinViaClajDialog extends BaseDialog {
+public class JoinDialog extends BaseDialog {
   String lastLink = "claj://";
   boolean valid;
   String output;
 
-  public JoinViaClajDialog() {
+  public JoinDialog() {
     super("@claj.join.name");
 
     cont.defaults().width(Vars.mobile ? 350f : 550f);

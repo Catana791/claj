@@ -33,9 +33,9 @@ public class ClajPackets {
     ClajNet.register(ConnectionPacketWrapPacket::new);
     ClajNet.register(ConnectionIdlingPacket::new);
     ClajNet.register(RoomCreationRequestPacket::new); // <-- should be the 5th
-    ClajNet.register(RoomClosureRequestPacket::new); 
-    ClajNet.register(RoomClosedPacket::new);
-    ClajNet.register(RoomJoinPacket::new); // <-- should be the 8th
+    ClajNet.register(RoomClosureRequestPacket::new);  // These two MUST not be moved.
+    ClajNet.register(RoomClosedPacket::new);          // They are here for compatibility reason.
+    ClajNet.register(RoomJoinPacket::new);            // <-- should be the 8th
     ClajNet.register(RoomJoinAcceptedPacket::new);
     ClajNet.register(RoomJoinDeniedPacket::new);
     ClajNet.register(RoomLinkPacket::new);
@@ -44,6 +44,7 @@ public class ClajPackets {
     ClajNet.register(RoomListPacket::new);
     ClajNet.register(RoomInfoRequestPacket::new);
     ClajNet.register(RoomInfoPacket::new);
+    ClajNet.register(ServerInfoPacket::new);
     ClajNet.register(ClajTextMessagePacket::new);
     ClajNet.register(ClajMessagePacket::new);
     ClajNet.register(ClajPopupPacket::new);

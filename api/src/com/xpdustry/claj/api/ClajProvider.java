@@ -40,8 +40,8 @@ public interface ClajProvider {
   
   /** Listener added to all virtual connections. Can be {@code null}. */
   default NetListener getConnectionListener() { return null; }
-  /** The implementation version, used to request a room creation. Cannot be {@code null}. */
-  String getVersion();
+  /** The implementation's major version, used to request a room creation. Must be equals to the server. */
+  int getVersion();
   /** The actual room state. Will be sent periodically to the server. Can be {@code null} to not provide state. */
   default GameState getRoomState(ClajProxy proxy) { return null; }
   /** 
@@ -51,7 +51,7 @@ public interface ClajProvider {
   default void connectClient(String host, int port, Runnable success) { if (success != null) success.run(); }
   
   /** 
-   * Essential for the protocol to work! 
+   * <strong>Essential for the protocol to work!</strong>
    * <p>
    * This defines how encapsulated packets are serialized and deserialized. <br>
    * This method is called once by the global manager ({@link Claj}).

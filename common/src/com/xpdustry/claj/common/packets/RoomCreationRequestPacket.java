@@ -22,17 +22,21 @@ package com.xpdustry.claj.common.packets;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
-import com.xpdustry.claj.common.util.Strings;
-
 
 public class RoomCreationRequestPacket extends DelayedPacket {
-  public String version;
-  
+  /** Must be the same as the server's major version to be able to connect. */
+  public int majorVersion = -1;
+
+  @Override
   protected void readImpl(ByteBufferInput read) {
-    if (read.buffer.hasRemaining()) version = Strings.truncate(Strings.readUTF(read), 16);
+    // Make it compatible with older version were no CLaJ version check was done, 
+    // or were a string was used to do the check.
+    // This works due to the way strings are written. 2 bytes (length) + 3 or 5 bytes (claj version)
+    majorVersion = read.buffer.remaining() == 4 ? read.readInt() : -1;
   }
   
+  @Override
   public void write(ByteBufferOutput write) {
-    Strings.writeUTF(write, Strings.truncate(version, 16));
+    write.writeInt(majorVersion);
   }
 }

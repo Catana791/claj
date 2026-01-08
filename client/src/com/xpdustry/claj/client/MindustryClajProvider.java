@@ -72,9 +72,17 @@ public class MindustryClajProvider implements ClajProvider {
     return mindustryServerDispatcher; 
   }
 
+  /** 
+   * CLaJ versions are always at format: {@code protocolType.majorVersion.minorVersion}. <br>
+   * Only {@code majorVersion} is important. <br>
+   * {@code protocolType} is discarded, as it's always {@code 2} (for this project). 
+   * Different CLaJ types must not be compatible with each others. <br>
+   * As well as {@code minorVersion}, because it's represents changes that doesn't affect the protocol itself.
+   */
+  final int majorVersion = Integer.parseInt(Main.getMeta().version.split("\\.")[1]);
   @Override
-  public String getVersion() { 
-    return Main.getMeta().version; 
+  public int getVersion() { 
+    return majorVersion; 
   }
 
   @Override
