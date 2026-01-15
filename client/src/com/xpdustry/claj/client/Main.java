@@ -24,8 +24,10 @@ import arc.util.Timer;
 
 import mindustry.Vars;
 import mindustry.game.EventType;
+import mindustry.gen.KickCallPacket2;
 import mindustry.mod.Mod;
 import mindustry.mod.Mods;
+import mindustry.net.Packets.KickReason;
 
 import com.xpdustry.claj.api.Claj;
 
@@ -51,8 +53,21 @@ public class Main extends Mod {
         if (!Vars.net.active() || Vars.state.isMenu()) Claj.get().closeRooms();
       }, 1f);
     });
-    Events.run(EventType.HostEvent.class, Claj.get()::closeRooms);
-    Events.run(EventType.ClientPreConnectEvent.class, Claj.get()::closeRooms);
+    Events.run(EventType.HostEvent.class, this::stopClaj);
+    Events.run(EventType.ClientPreConnectEvent.class, this::stopClaj);
+    
+    // Hooks NetClient#kick() packet to reconnect to the room
+    Vars.net.handleClient(KickCallPacket2.class, p -> {
+      p.handleClient();
+      if (p.reason == KickReason.serverRestarting)
+        ClajUi.join.rejoinRoom();
+    });
+  }
+  
+  public void stopClaj() {
+    Claj.get().closeRooms();
+    Claj.get().stopPingers();
+    ClajUi.join.resetLastLink(); // Avoid reconnect to a room after connecting to a normal server
   }
   
   /** Cached meta to avoid searching every times. */

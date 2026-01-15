@@ -17,20 +17,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.common.status;
+package com.xpdustry.claj.common.net.stream;
+
+import com.xpdustry.claj.common.packets.Packet;
 
 
-//TODO: get rid of that as it's mindustry related
-/** {@link mindustry.net.Host} with less information. */
-public record GameState(
-  //long roomId,
-  String name,
-  String mapname,
-  int wave,
-  int players, 
-  int playerLimit,
-  int version,
-  String versionType,
-  MindustryGamemode mode,
-  @arc.util.Nullable String modeName  
-) {}
+public interface StreamPacket extends Packet {}

@@ -31,7 +31,7 @@ public class RoomCreationRequestPacket extends DelayedPacket {
   protected void readImpl(ByteBufferInput read) {
     // Make it compatible with older version were no CLaJ version check was done, 
     // or were a string was used to do the check.
-    // This works due to the way strings are written. 2 bytes (length) + 3 or 5 bytes (claj version)
+    // This works due to the way strings are encoded. 2 bytes (length) + 3 or 5 bytes (claj version)
     majorVersion = read.buffer.remaining() == 4 ? read.readInt() : -1;
   }
   

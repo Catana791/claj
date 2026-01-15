@@ -22,6 +22,7 @@ package com.xpdustry.claj.api;
 import arc.ApplicationListener;
 import arc.Core;
 import arc.func.Cons;
+import arc.struct.Seq;
 
 import com.xpdustry.claj.common.ClajPackets;
 import com.xpdustry.claj.common.packets.ConnectionPacketWrapPacket;
@@ -69,7 +70,7 @@ public class Claj {
     this.provider = provider;
     this.proxies = proxies;
     this.pingers = pingers;
-    Core.app.addListener(new ApplicationListener() { public void dispose() { dispose(); } }); 
+    Core.app.addListener(new ApplicationListener() { public void dispose() { Claj.this.dispose(); } }); 
   }
 
   public boolean hasOpenRoom() {
@@ -78,6 +79,10 @@ public class Claj {
   
   public void closeRooms() {
     proxies.closeAllRooms();
+  }
+  
+  public void stopPingers() {
+    pingers.stop();
   }
   
   /** Stop the room and the joiner. */
@@ -104,8 +109,7 @@ public class Claj {
     pingers.pingHost(host, port, success, failed);
   }
   
-  public void serverRooms(String host, int port, Cons<ClajRoom> room, Cons<Long> updated, Runnable done, 
-                          Cons<Exception> failed) {
-    pingers.serverRooms(host, port, room, updated, done, failed);
+  public void serverRooms(String host, int port, Cons<Seq<ClajRoom>> rooms, Cons<Exception> failed) {
+    pingers.serverRooms(host, port, rooms, failed);
   }
 }

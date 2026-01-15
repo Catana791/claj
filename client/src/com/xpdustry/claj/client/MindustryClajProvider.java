@@ -73,7 +73,7 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   /** 
-   * CLaJ versions are always at format: {@code protocolType.majorVersion.minorVersion}. <br>
+   * CLaJ versions are always in format: {@code protocolType.majorVersion.minorVersion}. <br>
    * Only {@code majorVersion} is important. <br>
    * {@code protocolType} is discarded, as it's always {@code 2} (for this project). 
    * Different CLaJ types must not be compatible with each others. <br>
@@ -88,7 +88,6 @@ public class MindustryClajProvider implements ClajProvider {
   @Override
   public GameState getRoomState(ClajProxy proxy) { 
     return new GameState(
-      proxy.roomId(),
       Vars.player.name, 
       Vars.state.map.name(), 
       Vars.state.wave, 

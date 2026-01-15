@@ -23,9 +23,11 @@ import arc.Core;
 import arc.Events;
 import arc.func.Cons;
 import arc.graphics.Color;
+import arc.input.KeyCode;
 import arc.scene.ui.Button;
 import arc.scene.ui.layout.*;
 import arc.struct.ArrayMap;
+import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.*;
 
@@ -47,13 +49,13 @@ public class CreateRoomDialog extends BaseDialog {
   Server selected;
   Button bselected;
   final Table custom = new Table(), online = new Table();
-  boolean customShown = true, onlineShown = true, refreshingOnline;
+  boolean refreshingOnline;
 
   public CreateRoomDialog() {
     super("@claj.manage.name");
     Events.run(EventType.HostEvent.class, this::closeRoom);
-    
-    cont.defaults().width(Vars.mobile ? 480f : 850f);
+
+    cont.defaults().width(Vars.mobile ? 480f : 800f);
     
     makeButtonOverlay();
     addCloseButton();
@@ -62,61 +64,47 @@ public class CreateRoomDialog extends BaseDialog {
     if (Vars.mobile) buttons.row();
     buttons.button("@claj.manage.delete", Icon.cancel, this::closeRoom)
            .disabled(b -> Claj.get().proxies.isRoomClosed());
-    buttons.button("@claj.manage.copy", Icon.copy, this::copyLink).disabled(b -> link == null);
+    buttons.button("@copylink", Icon.copy, this::copyLink).disabled(b -> link == null);
     
+    keyDown(KeyCode.f5, this::refreshAll);
     shown(() -> {
       // Just to give time to this dialog to open
-      Time.run(7f, () -> {
-        refreshCustom();
-        refreshOnline();  
-      });
+      Time.run(7f, this::refreshAll);
     });
 
+    cont.top();
     cont.pane(inner -> {
       inner.table(hosts -> {
         // Description
         hosts.table(table -> {
           table.labelWrap("@claj.manage.tip").left().growX();
-          table.button(Icon.settings, ClajUi.settings::show).right().padLeft(10).growY()
+          table.button(Icon.settings, () -> ClajUi.settings.show()).right().padLeft(10).growY()
                .tooltip("@claj.settings.title");  
         }).padBottom(24).growX().row();
         
         // Custom servers
-        hosts.table(table -> {
-          table.add("@claj.manage.custom-servers").pad(10).padLeft(0).color(Pal.accent).growX().left();
-          table.button(Icon.add, Styles.emptyi, () -> ClajUi.add.show((n, h) -> {
-            ClajServers.custom.put(n, h);
-            ClajServers.saveCustom();
-            refreshCustom();
-          })).size(40f).right().padRight(3).tooltip("@server.add");
-  
-          table.button(Icon.refresh, Styles.emptyi, this::refreshCustom).size(40f).right().padRight(3)
-               .tooltip("@servers.refresh");
-          table.button(Icon.downOpen, Styles.emptyi, () -> customShown = !customShown)
-               .update(i -> i.getStyle().imageUp = customShown ? Icon.downOpen : Icon.upOpen).size(40f).right()
-               .tooltip(t -> t.label(() -> "@servers." + (customShown ? "hide" : "show")));
-        }).growX().row();
-        hosts.image().pad(5).height(3).color(Pal.accent).growX().row();
-        hosts.collapser(custom, false, () -> customShown).padBottom(10).growX().row();
+        section("@claj.manage.custom-servers", custom, hosts, () -> ClajUi.add.show((n, h) -> {
+          ClajServers.custom.put(n, h);
+          ClajServers.saveCustom();
+          refreshCustom();
+        }), this::refreshCustom);
         
-        // Online Public servers
-        hosts.table(table -> {
-          table.add("@claj.manage.public-servers").pad(10).padLeft(0).color(Pal.accent).growX().left();
-          table.button(Icon.refresh, Styles.emptyi, this::refreshOnline).size(40f).right().padRight(3)
-               .tooltip("@servers.refresh");
-          table.button(Icon.downOpen, Styles.emptyi, () -> onlineShown = !onlineShown)
-               .update(i -> i.getStyle().imageUp = onlineShown ? Icon.downOpen : Icon.upOpen).size(40f).right()
-               .tooltip(t -> t.label(() -> "@servers." + (onlineShown ? "hide" : "show")));
-        }).growX().row();
-        hosts.image().pad(5).height(3).color(Pal.accent).growX().row();
-        hosts.collapser(online, false, () -> onlineShown).padBottom(10).growX().row();    
+        // Public servers
+        section("@claj.manage.public-servers", online, hosts, null, this::refreshOnline);
       }).padRight(5).grow();
       
       // Give extra space for buttons
       inner.marginBottom(Vars.mobile ? 140f : 70f); 
-    }).get().setScrollingDisabled(true, false);
+    }).with(s -> {
+      s.setForceScroll(false, true);
+      s.setScrollingDisabled(true, false);
+    });
 
-    // Adds the 'Manage CLaJ room' button
+    // Add the 'Manage CLaJ room' button in pause menu
+    addButton();
+  }
+  
+  void addButton() {  
     Vars.ui.paused.shown(() -> {
       Table root = Vars.ui.paused.cont;
       root.row();
@@ -127,12 +115,14 @@ public class CreateRoomDialog extends BaseDialog {
         root.buttonRow("@claj.manage.name", Icon.planet, this::show)
             .disabled(button -> !Vars.net.server()).row();
         return;
+        
       // Makes it compatible for foo's client users by checking the hosting button.
       // 'colspan' is normally at 2 on vanilla.
       // Also there is no way to get this property, so we need reflection.
       } else if (Reflect.<Integer>get(buttons.get(buttons.size-2), "colspan") == 2) 
         root.button("@claj.manage.name", Icon.planet, this::show).colspan(2).width(450f)
             .disabled(button -> !Vars.net.server()).row();   
+      
       // Probably the foo's client, use a normal button
       else 
         root.button("@claj.manage.name", Icon.planet, this::show)
@@ -143,29 +133,48 @@ public class CreateRoomDialog extends BaseDialog {
     });
   }
   
+  public void refreshAll() {
+    refreshCustom();
+    refreshOnline();
+  }
+  
   public void refreshCustom() {
     ClajServers.loadCustom();
-    setupServers(ClajServers.custom, custom, true, s -> {
-      ClajServers.saveCustom();
-      refreshCustom(); 
-    });
+    setupServers(ClajServers.custom, custom, 
+      s -> ClajUi.add.show(s.name, s.get(), (n, a) -> {
+        int index = ClajServers.custom.indexOfKey(s.name);
+        ClajServers.custom.setKey(index, n);
+        ClajServers.custom.setValue(index, a);
+        ClajServers.saveCustom();
+        refreshCustom();          
+      }), 
+      s -> Vars.ui.showConfirm("@confirm", "@server.delete", () -> {
+        ClajServers.custom.removeKey(s.name);
+        ClajServers.saveCustom();
+        refreshCustom();   
+      })
+    );
   }
   
   public void refreshOnline() {
-    if (refreshingOnline) return;
+    if (refreshingOnline) return; // Avoid to re-trigger a refresh while refreshing
     refreshingOnline = true;
+    Claj.get().stopPingers(); // cancel previous pings
+    
     online.clear();
     online.button(b -> 
-      b.table(t -> t.label(() -> Strings.animated(Time.time, 4, 11, ".")).color(Pal.accent)).center(), () -> {}
+      b.table(t -> {
+        t.add("@claj.servers.fetching").padRight(3);
+        t.label(() -> Strings.animated(Time.time, 4, 11, ".")).color(Pal.accent);
+      }).center(), () -> {}
     ).growX().padTop(5).padBottom(5);
     
     ClajServers.refreshOnline(() -> {
-      Claj.get().pingers.stop(); // cancel previous pings
       refreshingOnline = false;
       if (ClajServers.online.isEmpty()) {
         online.clear();
         online.button("@claj.servers.empty", () -> {}).growX().padTop(5).padBottom(5).row();
-      } else setupServers(ClajServers.online, online, false, null);
+      } else setupServers(ClajServers.online, online, null, null);
     }, e -> {
       refreshingOnline = false;
       online.clear();
@@ -174,14 +183,30 @@ public class CreateRoomDialog extends BaseDialog {
     }); 
   }
   
-  public void setupServers(ArrayMap<String, String> servers, Table table, boolean editable, Cons<Server> deleted) {
+  public void section(String label, Table src, Table dest, Runnable add, Runnable refresh) {
+    Collapser coll = new Collapser(src, false);
+    dest.table(head -> {
+      head.add(label, Pal.accent).pad(5).growX().left().bottom();
+      if (add != null)
+        head.button(Icon.add, Styles.emptyi, add).size(40f).padRight(3).right().tooltip("@server.add");
+      if (refresh != null)
+        head.button(Icon.refresh, Styles.emptyi, refresh).size(40f).padRight(3).right().tooltip("@servers.refresh");
+      head.button(Icon.downOpen, Styles.emptyi, () -> coll.toggle()).size(40f).padRight(5).right()
+          .update(i -> i.getStyle().imageUp = coll.isCollapsed() ? Icon.downOpen : Icon.upOpen)
+          .tooltip(t -> t.label(() -> "@servers." + (coll.isCollapsed() ? "show" : "hide")));
+    }).growX().row();
+    dest.image().pad(5).height(3).color(Pal.accent).growX().row();
+    dest.add(coll).padBottom(10).growX().row();  
+  }
+  
+  public void setupServers(ArrayMap<String, String> servers, Table table, Cons<Server> edit, Cons<Server> delete) {
     selected = null;// in case of
     table.clear();
 
-    for (int i=0; i<servers.size; i++) {
+    for (ObjectMap.Entry<String, String> e : servers) {
       Server server = new Server();
-      server.name = servers.getKeyAt(i);
-      server.set(servers.getValueAt(i));
+      server.name = e.key;
+      server.set(e.value);
       
       Button button = new Button(); 
       button.getStyle().checkedOver = button.getStyle().checked = button.getStyle().over;
@@ -192,68 +217,56 @@ public class CreateRoomDialog extends BaseDialog {
       });
       table.add(button).checked(b -> bselected == b).growX().padTop(5).padBottom(5).row();
 
-      Stack stack = new Stack();
-      Table inner = new Table();
-      inner.setColor(Pal.gray);
-   
-      button.clearChildren();
-      button.add(stack).growX().row();
-      
-      Table ping = new Table();
-      inner.add(ping).margin(0).pad(0).left().fillX();
-      inner.add().expandX();
       Table label = new Table().center();
+      Table inner = new Table();
+      button.clearChildren();
+      button.stack(label, inner).growX().row();
+      
       // Cut in two line for mobiles or if the name is too long
-      if (Vars.mobile || (servers.getKeyAt(i) + " (" + servers.getValueAt(i) + ')').length() > 54) {
-        label.add(servers.getKeyAt(i)).pad(5, 5, 0, 5).expandX().row();
-        label.add(" [lightgray](" + servers.getValueAt(i) + ')').pad(5, 0, 5, 5).expandX();
-      } else label.add(servers.getKeyAt(i) + " [lightgray](" + servers.getValueAt(i) + ')') .pad(5).expandX();
-      
-      stack.add(label);
-      stack.add(inner);
-      
-      if (editable) {
-        final int i0 = i;
-        Cell<?> edit = inner.button(Vars.mobile ? Icon.pencil : Icon.pencilSmall, Styles.emptyi, () ->
-          ClajUi.add.show(server.name, server.get(), (n, a) -> {
-            ClajServers.custom.setKey(i0, n);
-            ClajServers.custom.setValue(i0, a);
-            ClajServers.saveCustom();
-            refreshCustom();          
-          })
-        ).right().tooltip("@server.edit");
-        
-        Cell<?> delete = inner.button(Vars.mobile ? Icon.trash : Icon.trashSmall, Styles.emptyi, () -> 
-          Vars.ui.showConfirm("@confirm", "@server.delete", () -> {
-            servers.removeKey(server.name);
-            if (deleted != null) deleted.get(server);
-          })
-        ).right().tooltip("@server.del");
-      
-        if (Vars.mobile) {
-          edit.size(30f).pad(2, 5, 2, 5);
-          delete.size(30f).pad(2, 5, 2, 5);
-        } else {
-          edit.pad(4f);
-          delete.pad(2f);
-        }
-      }
+      if (Vars.mobile || (e.key + " (" + e.value + ')').length() > 54) {
+        label.add(e.key).pad(5, 5, 0, 5).expandX().row();
+        label.add("[lightgray](" + e.value + ')').pad(5, 0, 5, 5).expandX();
+      } else label.add(e.key + " [lightgray](" + e.value + ')').pad(5).expandX();
 
-      ping.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(2).padLeft(7).color(Pal.accent).left();
-      Claj.get().pingHost(server.address, server.port, s -> {
-        server.compatible = s.majorVersion() == Claj.get().provider.getVersion();
-        server.outdated = s.majorVersion() < Claj.get().provider.getVersion();
-        
-        ping.clear();
-        if (server.compatible) ping.image(Icon.ok).color(Color.green).padLeft(5).padRight(5).left();
-        else ping.image(Icon.warning).color(Color.yellow).pad(0, 5, 5, 5).left().get().scaleBy(-0.21f);
-        if (!Vars.mobile) ping.add(s.ping() + "ms", 0.91f).color(Color.lightGray).padRight(5).left(); 
-        else ping.row().add(s.ping() + "ms", 0.91f).color(Color.lightGray).padLeft(5).padRight(5).left();
-      }, e -> {
-        ping.clear();
-        ping.image(Icon.cancel).color(Color.red).padLeft(5).padRight(5).left();
-      });
+      inner.setColor(Pal.gray);
+      inner.table(ping -> pingServer(server, ping)).margin(0).padLeft(5).padRight(5).left().fillX();
+      inner.add().expandX();
+      
+      if (edit != null) {
+        Cell<?> editb = 
+          inner.button(Vars.mobile ? Icon.pencil : Icon.pencilSmall, Styles.emptyi, () -> edit.get(server))
+               .right().tooltip("@server.edit");
+        if (!Vars.mobile) editb.pad(4f);
+        else editb.size(30f).pad(2, 5, 2, 5);
+      }
+      
+      if (delete != null) {
+        Cell<?> deleteb = 
+          inner.button(Vars.mobile ? Icon.trash : Icon.trashSmall, Styles.emptyi, () -> delete.get(server))
+               .right().tooltip("@server.del");
+        if (!Vars.mobile) deleteb.pad(2f);
+        else deleteb.size(30f).pad(2, 5, 2, 5);
+      }
     }
+  }
+  
+  void pingServer(Server server, Table dest) {
+    dest.clear();
+    dest.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(2).color(Pal.accent).left();
+    
+    Claj.get().pingHost(server.address, server.port, s -> {
+      server.compatible = s.majorVersion() == Claj.get().provider.getVersion();
+      server.outdated = s.majorVersion() < Claj.get().provider.getVersion();
+      
+      dest.clear();
+      if (server.compatible) dest.image(Icon.ok, Color.green).padRight(7).left();
+      else dest.image(Icon.warning, Color.yellow).padBottom(3).left().get().scaleBy(-0.22f);
+      if (Vars.mobile) dest.row();
+      dest.add(s.ping() + "ms", Color.lightGray, 0.91f).left();
+    }, e -> {
+      dest.clear();
+      dest.image(Icon.cancel, Color.red).left();
+    });
   }
 
   public void createRoom() {

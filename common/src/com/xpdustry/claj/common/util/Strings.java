@@ -597,6 +597,14 @@ public class Strings extends arc.util.Strings {
     return false;
   }
   
+  /** {@link String#matches(String)} but with a predicate. */
+  public static boolean matches(String src, Boolf<Character> predicate) {
+    for (int i=0, n=src.length(); i<n; i++) {
+      if (!predicate.get(src.charAt(i))) return false;
+    }
+    return true;
+  }
+  
   public static String conIDToString(Connection con) {
     return conIDToString(con.getID());
   }

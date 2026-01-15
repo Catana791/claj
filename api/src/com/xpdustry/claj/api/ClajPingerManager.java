@@ -22,6 +22,7 @@ package com.xpdustry.claj.api;
 import arc.func.Cons;
 import arc.func.Cons2;
 import arc.struct.Queue;
+import arc.struct.Seq;
 import arc.util.Threads;
 
 import com.xpdustry.claj.common.status.RejectReason;
@@ -121,6 +122,7 @@ public class ClajPingerManager {
   
   /** Dispose all pingers. */
   public void dispose() {
+    stop();
     for (ClajPinger pinger : pingers) {
       if (pinger == null) continue;
       pinger.stop();
@@ -207,11 +209,10 @@ public class ClajPingerManager {
     });
   }
   
-  public void serverRooms(String ip, int port, Cons<ClajRoom> room, Cons<Long> updated, 
-                          Runnable done, Cons<Exception> failed) {
+  public void serverRooms(String ip, int port, Cons<Seq<ClajRoom>> rooms, Cons<Exception> failed) {
     submit((pinger, finished) -> {
-      pinger.requestRoomList(ip, port, room, updated, () -> {
-        if (done != null) done.run();
+      pinger.requestRoomList(ip, port, r -> {
+        if (rooms != null) rooms.get(r);
         finished.run();
       }, error -> {
         if (failed != null) failed.get(error);

@@ -22,19 +22,24 @@ package com.xpdustry.claj.api;
 import com.xpdustry.claj.common.status.GameState;
 
 
-/** {@link com.xpdustry.claj.server.ClajRoom} with just the queryable things. */
 public class ClajRoom {
   public final long roomId;
   public boolean isPublic;
   public boolean isProtected;
-  // Hold on! this must not be public
-  //public short password;
   /** Only presents if the room is public and the server has retrieved his state. */
   public GameState state;
   /** The link to the room. */
   public ClajLink link;
   
-  public ClajRoom(long roomId) {
+  public ClajRoom(long roomId) { 
+    this.roomId = roomId; 
+  }
+  
+  public ClajRoom(long roomId, boolean isPublic, boolean isProtected, GameState state, ClajLink link) {
     this.roomId = roomId;
+    this.isPublic = isPublic;
+    this.isProtected = isProtected;
+    this.state = state;
+    this.link = link;
   }
 }

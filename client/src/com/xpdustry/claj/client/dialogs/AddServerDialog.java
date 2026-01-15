@@ -36,9 +36,9 @@ public class AddServerDialog extends mindustry.ui.dialogs.BaseDialog {
 
     cont.table(table -> {
       table.add("@claj.manage.server-name").padRight(5f).right();
-      table.add(nameField).size(320f, 54f).maxTextLength(64).left().row();   
+      table.add(nameField).maxTextLength(64).size(320f, 54f).left().row();   
       table.add("@joingame.ip").padRight(5f).right();
-      table.add(addressField).size(320f, 54f).maxTextLength(64).left().valid(this::validate).row();
+      table.add(addressField).maxTextLength(64).valid(this::validate).size(320f, 54f).left().row();
       table.add();
       table.label(() -> lastError).width(320f).left();
     }).row();
@@ -72,7 +72,7 @@ public class AddServerDialog extends mindustry.ui.dialogs.BaseDialog {
     show();
   }
   
-  private boolean validate(String host) {
+  boolean validate(String host) {
     if (host.equals(lastHost)) return lastError == null;
     lastHost = host;
     lastError = null;

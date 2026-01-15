@@ -27,7 +27,7 @@ import com.xpdustry.claj.client.dialogs.*;
 public class ClajUi {
   public static JoinDialog join;
   public static CreateRoomDialog create;
-  /** Should no be used directly, helper methods should be used instead. */
+  /** Must no be used directly, please use helper methods instead. */
   public static AddServerDialog add;
   public static RoomSettingsDialog settings;
   public static RoomPasswordDialog password;

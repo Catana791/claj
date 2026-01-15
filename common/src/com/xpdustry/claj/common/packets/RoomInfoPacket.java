@@ -37,8 +37,20 @@ public class RoomInfoPacket extends RoomLinkPacket {
   protected void readImpl(ByteBufferInput read) {
     roomId = read.readLong();
     if (read.readBoolean()) return;
-    state = new GameState(
-      roomId,
+    state = readState(read);
+  }  
+ 
+  @Override
+  public void write(ByteBufferOutput write) {
+    //write.writeLong(roomId);
+    write.writeBoolean(state == null);
+    if (state == null) return;
+    writeState(write, state);
+  }
+  
+  public static GameState readState(ByteBufferInput read) {
+    return new GameState(
+      //roomId,
       Strings.truncate(Strings.readUTF(read), 40/*Vars.maxNameLength*/),
       Strings.truncate(Strings.readUTF(read), 64),
       read.readInt(),
@@ -49,13 +61,9 @@ public class RoomInfoPacket extends RoomLinkPacket {
       MindustryGamemode.all[read.readByte()],
       readUTFNullable(read, 50)
     );
-  }  
- 
-  @Override
-  public void write(ByteBufferOutput write) {
-    write.writeLong(roomId);
-    write.writeBoolean(state == null);
-    if (state == null) return;
+  }
+  
+  public static void writeState(ByteBufferOutput write, GameState state) {
     Strings.writeUTF(write, Strings.truncate(state.name(), 40/*Vars.maxNameLength*/));
     Strings.writeUTF(write, Strings.truncate(state.mapname(), 64));
     write.writeInt(state.wave());

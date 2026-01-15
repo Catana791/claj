@@ -19,23 +19,98 @@
 
 package com.xpdustry.claj.client.dialogs;
 
+import arc.func.Cons;
+import arc.input.KeyCode;
+import arc.scene.ui.TextButton;
+import arc.scene.ui.TextField;
+import arc.scene.ui.TextField.TextFieldFilter;
+import arc.util.Time;
+
+import mindustry.gen.Icon;
 import mindustry.ui.dialogs.BaseDialog;
 
-import com.xpdustry.claj.api.ClajLink;
-import com.xpdustry.claj.common.status.RejectReason;
+import com.xpdustry.claj.api.ClajPinger;
+import com.xpdustry.claj.common.util.Strings;
 
 
 public class RoomPasswordDialog extends BaseDialog {
-  public ClajLink link;
-  public short password;
-  public RejectReason denied;
+  public static int digits = 4;
+  
+  final TextField passwordField = new TextField();
+  final TextButton connectButton;
+  short password = ClajPinger.NO_PASSWORD;
+  boolean valid;
+  Cons<Short> confirm;
   
   public RoomPasswordDialog() { 
-    super("@claj.join.password-required");
+    super("");
+    cont.defaults().width(350f);
+    buttons.defaults().size(140f, 60f).pad(4f);
+
+    cont.table(table -> {
+      table.add("@claj.password.field").padRight(5f).right();
+      table.add(passwordField).maxTextLength(digits).valid(this::validate).size(180f, 54f).left().row();
+      passwordField.setFilter(TextFieldFilter.digitsOnly);
+      passwordField.update(passwordField::requestKeyboard);
+    }).padBottom(75f).row();
     
+    cont.table(table -> {
+      table.defaults().size(74, 64).pad(5);
+      int i = 0;
+      for (char c : "123456789 0".toCharArray()) {
+        if (i++ % 3 == 0) table.row();
+        if (c != ' ') {
+          String cs = String.valueOf(c);
+          table.button(cs, () -> addLetter(cs)).get().getLabel().setFontScale(1.3f);
+        } else table.add();
+      }
+      table.button(Icon.undo, this::popLetter);
+    });
+    
+    connectButton = buttons.button("@claj.password.connect", this::confirm).disabled(b -> !valid).get();
+    buttons.button("@cancel", this::hide);
+    
+    hidden(() -> {
+      Time.run(7f, passwordField::clearText); // delay clear for visual
+      password = ClajPinger.NO_PASSWORD;
+    }); 
+    addCloseListener();
+    keyDown(KeyCode.enter, connectButton::fireClick);
   }
   
-  public void open(ClajLink link, Runnable success) {
-    
+  protected void addLetter(String l) {
+    passwordField.appendText(l);
+  }
+  
+  protected void popLetter() {
+    // No easy way to pop a letter
+    passwordField.setText(passwordField.getText().substring(0, Math.max(0, passwordField.getText().length()-1)));
+    passwordField.setCursorPosition(passwordField.getMaxLength());
+  }
+  
+  protected void confirm() {
+    hide();
+    confirm.get(password);
+  }
+  
+  protected boolean validate(String password) {
+    valid = password.length() == digits && Strings.matches(password, Character::isDigit);
+    if (valid) {
+      int parsed = Strings.parseInt(password, -1);
+      this.password = parsed < Short.MIN_VALUE || parsed > Short.MAX_VALUE ? -1 : (short)parsed;
+    }
+    return valid;
+  }  
+  
+  public void show(Cons<Short> confirmed) { show(confirmed, true); }
+  /** 
+   * @param connectMode Defines whether this dialog should be displayed 
+   *        as a prompt to connect to a room ({@code true}) or to set his password ({@code false}).
+   */
+  public void show(Cons<Short> confirmed, boolean connectMode) {
+    confirm = confirmed;
+    title.setText(connectMode ? "@claj.password.required" : "@claj.password.define");
+    connectButton.getLabel().setText(connectMode ? "@connect" : "@confirm");
+    show();
   }
 }

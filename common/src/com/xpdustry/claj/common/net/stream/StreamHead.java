@@ -17,20 +17,34 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.common.status;
+package com.xpdustry.claj.common.net.stream;
+
+import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 
 
-//TODO: get rid of that as it's mindustry related
-/** {@link mindustry.net.Host} with less information. */
-public record GameState(
-  //long roomId,
-  String name,
-  String mapname,
-  int wave,
-  int players, 
-  int playerLimit,
-  int version,
-  String versionType,
-  MindustryGamemode mode,
-  @arc.util.Nullable String modeName  
-) {}
+/** {@link mindustry.net.Packets.StreamBegin}. */
+public class StreamHead implements StreamPacket {
+  private static int lastid;
+
+  public int id = lastid++;
+  public int total;
+  public byte type;
+  public boolean compressed;
+
+  @Override
+  public void read(ByteBufferInput in) {
+    id = in.readInt();
+    total = in.readInt();
+    type = in.readByte();
+    compressed = in.readBoolean();
+  }  
+  
+  @Override
+  public void write(ByteBufferOutput out) {
+    out.writeInt(id);
+    out.writeInt(total);
+    out.writeByte(type);
+    out.writeBoolean(compressed);
+  }
+}

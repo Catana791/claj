@@ -23,6 +23,8 @@ import arc.net.DcReason;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
+import com.xpdustry.claj.common.net.stream.StreamChunk;
+import com.xpdustry.claj.common.net.stream.StreamHead;
 import com.xpdustry.claj.common.packets.*;
 
 
@@ -48,6 +50,8 @@ public class ClajPackets {
     ClajNet.register(ClajTextMessagePacket::new);
     ClajNet.register(ClajMessagePacket::new);
     ClajNet.register(ClajPopupPacket::new);
+    ClajNet.register(StreamHead::new);
+    ClajNet.register(StreamChunk::new);
   }
   
   

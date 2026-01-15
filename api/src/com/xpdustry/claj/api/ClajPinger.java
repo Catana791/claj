@@ -24,10 +24,11 @@ import java.nio.channels.Selector;
 
 import arc.Core;
 import arc.func.Cons;
+import arc.func.Cons2;
 import arc.net.Client;
 import arc.net.DcReason;
 import arc.net.FrameworkMessage;
-import arc.struct.LongMap;
+import arc.struct.Seq;
 import arc.util.Reflect;
 
 import com.xpdustry.claj.common.net.ClientReceiver;
@@ -56,12 +57,8 @@ public class ClajPinger extends Client {
   protected volatile long lastPing;
   protected volatile boolean pingReceived, pinging;
   
-  protected Cons<ClajRoom> listInfo;
-  protected Cons<Long> listUpdated;
-  protected Runnable listDone;
+  protected Cons<Seq<ClajRoom>> listInfo;
   protected Cons<Exception> listFailed;
-  protected long lastRoomId = -1;
-  protected final LongMap<ClajRoom> rooms = new LongMap<>();
   protected volatile boolean listing;
   
   protected Runnable joinSuccess;
@@ -84,16 +81,7 @@ public class ClajPinger extends Client {
     });
     
     receiver.handle(RoomListPacket.class, p -> {
-      lastRoomId = p.hasNext ? -1 : p.rooms.peekKey();
-      for (int i=0; i<p.rooms.size; i++) {
-        runListInfo(p.rooms.getKeyAt(i), p.rooms.getValueAt(i));
-        requestRoomInfo(p.rooms.getKeyAt(i));
-      }
-    });
-    receiver.handle(RoomInfoPacket.class, p -> {
-      runListUpdated(p.roomId, p.state);
-      if (p.roomId != -1 && lastRoomId == p.roomId) 
-        runListDone();
+      runListInfo(p.size, p.rooms, p.isProtected, p.states);
     });
     
     receiver.handle(ServerInfoPacket.class, p -> {
@@ -195,45 +183,30 @@ public class ClajPinger extends Client {
     close();
   }
   
-  protected synchronized void resetListState(Cons<ClajRoom> room, Cons<Long> updated, Runnable done, 
-                                             Cons<Exception> failed) {
-    listInfo = room;
-    listUpdated = updated;
-    listDone = done;
+  protected synchronized void resetListState(Cons<Seq<ClajRoom>> rooms, Cons<Exception> failed) {
+    listInfo = rooms;
     listFailed = failed;
-    lastRoomId = -1;
-    rooms.clear();
     listing = false;
   }
   
-  protected void runListInfo(long roomId, boolean isProtected) {
+  protected void runListInfo(int size, long[] rooms, boolean[] isProtected, GameState[] states) {
     // Avoid creating useless objects if the callback is not defined.
     if (listInfo == null) return;
-    ClajRoom room = new ClajRoom(roomId);
-    room.isPublic = true; // If the server includes it, it must be public
-    room.isProtected = isProtected;
-    room.link = new ClajLink(connectHost, connectPort, roomId);
-    rooms.put(roomId, room);
-    postTask(listInfo, room);
-  }
-
-  protected void runListUpdated(long roomId, GameState state) {
-    if (listUpdated == null) return;
-    ClajRoom room = rooms.get(roomId);
-    if (room == null) return; // should not be possible
-    room.state = state;
-    postTask(listUpdated, roomId);
-  }
-  
-  protected void runListDone() {
-    if (listDone != null) postTask(listDone);
-    resetListState(null, null, null, null);
+    Seq<ClajRoom> roomList = new Seq<>(size);
+    for (int i=0; i<size; i++) {
+      if (rooms[i] == ClajProxy.UNCREATED_ROOM) continue; // ignore invalid rooms
+      roomList.add(new ClajRoom(rooms[i], true, isProtected[i], states[i], 
+                                new ClajLink(connectHost, connectPort, rooms[i])));
+    }
+      
+    postTask(listInfo, roomList);
+    resetListState(null, null);
     close();
   }
   
   protected void runListFailed(Exception e) {
     if (listFailed != null) postTask(listFailed, e);
-    resetListState(null, null, null, null);
+    resetListState(null, null);
     close();
   }
   
@@ -286,7 +259,7 @@ public class ClajPinger extends Client {
       return;
     }
     try { connect(host, port); }
-    catch (IOException e) {
+    catch (Exception e) {
       resetPingState(success, failed);
       runPingFailed(e);
       return;
@@ -294,17 +267,16 @@ public class ClajPinger extends Client {
     requestServerStatus();
   }
   
-  public void requestRoomList(String host, int port, Cons<ClajRoom> room, Cons<Long> updated, Runnable done, 
-                              Cons<Exception> failed) {
+  public void requestRoomList(String host, int port, Cons<Seq<ClajRoom>> rooms, Cons<Exception> failed) {
     if (!canceling) {
       try { connect(host, port); }
-      catch (IOException e) { 
-        resetListState(room, updated, done, failed);
+      catch (Exception e) { 
+        resetListState(rooms, failed);
         runListFailed(e); 
         return;
       }
     }
-    resetListState(room, updated, done, failed);
+    resetListState(rooms, failed);
     listing = true;
     if (canceling) cancel();
     else requestRoomList();
@@ -320,7 +292,7 @@ public class ClajPinger extends Client {
                        Cons<RejectReason> reject, Cons<Exception> failed) {
     if (!canceling) {
       try { connect(host, port); }
-      catch (IOException e) { 
+      catch (Exception e) { 
         resetJoinState(success, reject, failed);
         runJoinFailed(e); 
         return;
@@ -333,6 +305,10 @@ public class ClajPinger extends Client {
     else requestRoomJoin(roomId, password);
   }
 
+  public void requestRoomInfo(String host, int port, long roomId, Cons2<Long, GameState> info) {
+    //TODO
+  }
+  
   protected void requestServerStatus() {
     sendUDP(FrameworkMessage.discoverHost);
   }

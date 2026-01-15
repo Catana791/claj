@@ -29,6 +29,8 @@ import arc.struct.ObjectMap;
 import arc.util.Log;
 
 import com.xpdustry.claj.common.ClajPackets.*;
+import com.xpdustry.claj.common.net.stream.StreamPacket;
+import com.xpdustry.claj.common.net.stream.StreamReceiver;
 import com.xpdustry.claj.common.packets.Packet;
 import com.xpdustry.claj.common.util.Strings;
 
@@ -90,8 +92,14 @@ public class ClientReceiver {
   
   @SuppressWarnings("unchecked")
   public void received(Packet packet) {
-    try { 
+    try {
       packet.handled();
+      
+      if (packet instanceof StreamPacket stream) {
+        packet = StreamReceiver.received(stream);
+        if (packet != null) received(packet);
+        return;
+      }
   
       var listener = (Cons<Packet>)listeners.get(packet.getClass());
       if (listener != null) listener.get(packet);

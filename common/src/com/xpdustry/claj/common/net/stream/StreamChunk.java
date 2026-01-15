@@ -17,20 +17,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.common.status;
+package com.xpdustry.claj.common.net.stream;
+
+import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 
 
-//TODO: get rid of that as it's mindustry related
-/** {@link mindustry.net.Host} with less information. */
-public record GameState(
-  //long roomId,
-  String name,
-  String mapname,
-  int wave,
-  int players, 
-  int playerLimit,
-  int version,
-  String versionType,
-  MindustryGamemode mode,
-  @arc.util.Nullable String modeName  
-) {}
+/** {@link mindustry.net.Packets.StreamChunk}. */
+public class StreamChunk implements StreamPacket {
+  public int id;
+  public byte[] data;
+
+  @Override
+  public void read(ByteBufferInput in) {
+    id = in.readInt();
+    data = new byte[in.readShort()];
+    in.readFully(data);
+  }
+  
+  @Override
+  public void write(ByteBufferOutput out) {
+    out.writeInt(id);
+    out.writeShort((short)data.length);
+    out.write(data);
+  }
+}

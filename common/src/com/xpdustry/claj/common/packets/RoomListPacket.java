@@ -19,61 +19,61 @@
 
 package com.xpdustry.claj.common.packets;
 
-import arc.struct.ArrayMap;
+import java.nio.ByteBuffer;
+import java.util.BitSet;
+
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
+import com.xpdustry.claj.common.net.stream.StreamSender;
+import com.xpdustry.claj.common.status.GameState;
 
-public class RoomListPacket extends DelayedPacket {
-  /** Public rooms on the server and whether they are protected or not. */
-  public ArrayMap<Long, Boolean> rooms;
-  /** 
-   * Because a server can hold many rooms, 
-   * putting all their id in a single packet can leads to a buffer overflow. <br>
-   * This field control whether more room ids are waiting. <br>
-   * Commonly {@link #rooms} are given per {@code 1024}.
-   */
-  public boolean hasNext;
-  
+
+/** Can be a huge packet, should be sent with {@link StreamSender} instead. */
+public class RoomListPacket /*extends DelayedPacket*/ implements Packet {
+  public int size;
+  public long[] rooms;
+  public boolean[] isProtected;
+  public GameState[] states;
+
   @Override
-  protected void readImpl(ByteBufferInput read) {
-    hasNext = read.readBoolean();
-    rooms = new ArrayMap<>(read.readShort());
-    for (int i=0; i<rooms.size; i++) 
-      rooms.put(read.readLong(), null); // protected is read after
-    readPackedBits(read);
+  public void read(ByteBufferInput read) {
+    size = read.readInt();
+    rooms = new long[size];
+    isProtected = new boolean[size];
+    states = new GameState[size];
+    
+    int length = ((size << 1) + Byte.SIZE - 1) / Byte.SIZE;
+    BitSet bits = BitSet.valueOf((ByteBuffer)read.buffer.slice().limit(length));
+    read.skipBytes(length);
+
+    for (int i=0; i<size; i++) {
+      isProtected[i] = bits.get(i << 1);
+      rooms[i] = read.readLong();
+      if (bits.get((i << 1) + 1)) 
+        states[i] = RoomInfoPacket.readState(read);
+    }
   }
   
   @Override
   public void write(ByteBufferOutput write) {
-    write.writeBoolean(hasNext);
-    write.writeShort(rooms.size);
-    for (long id : rooms.keys) 
-      write.writeLong(id);
-    writePackedBits(write);
-  }
-  
-  private void readPackedBits(ByteBufferInput read) {
-    byte current = 0;
-    int pos;
-    for (int i=0; i<rooms.size; i++) {
-      pos = i % Byte.SIZE;
-      if (pos == 0) current = read.readByte();
-      rooms.setValue(i, ((current >>> pos) & 1) != 0);
+    write.writeInt(size);
+    
+    BitSet bits = new BitSet(size << 1);
+    for (int i=0; i<size; i++) {
+      if (isProtected[i]) bits.set(i << 1);
+      if (states[i] != null) bits.set((i << 1) + 1);
     }
-  }
-  
-  private void writePackedBits(ByteBufferOutput write) {
-    byte current = 0;
-    int pos;
-    for (int i=0; i<rooms.size; i++) {
-      pos = i % Byte.SIZE;
-      if (rooms.values[i]) current |= 1 << pos;
-      if (pos == 7) {
-        write.writeByte(current);
-        current = 0;
-      }
+    
+    int length = ((size << 1) + Byte.SIZE - 1) / Byte.SIZE;
+    byte[] bytes = bits.toByteArray();
+    write.write(bytes);
+    for (int i=bytes.length; i<length; i++) write.writeByte(0);
+    
+    for (int i=0; i<size; i++) {
+      write.writeLong(rooms[i]);
+      if (states[i] != null) 
+        RoomInfoPacket.writeState(write, states[i]);
     }
-    if (rooms.size % Byte.SIZE != 0) write.writeByte(current);    
   }
 }

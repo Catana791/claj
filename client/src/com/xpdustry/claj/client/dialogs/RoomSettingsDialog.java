@@ -25,5 +25,7 @@ import mindustry.ui.dialogs.BaseDialog;
 public class RoomSettingsDialog extends BaseDialog {
   public RoomSettingsDialog() {
     super("@claj.settings.title");
+    addCloseButton();
+    
   }
 }
