@@ -24,25 +24,40 @@ import java.util.concurrent.ExecutorService;
 import arc.net.NetListener;
 
 import com.xpdustry.claj.common.packets.ConnectionPacketWrapPacket.Serializer;
-import com.xpdustry.claj.common.status.GameState;
-import com.xpdustry.claj.common.status.MessageType;
+import com.xpdustry.claj.common.status.*;
 
 
-/** Interface that provides implementation dependent client-side things. */
+/** Interface to provide implementation dependent client-side things. */
 public interface ClajProvider {
-  /** Executor used to post connecting tasks. If {@code null}, these operations will be blocking. */
+  /** Executor used to post connection tasks. If {@code null}, these operations will be blocking. */
   default ExecutorService getExecutor() { return null; }
-  
+
   /** Used to create new proxy clients. Cannot be {@code null}. */
   default ClajProxy newProxy() { return new ClajProxy(this); };
   /** Used to create new pinger clients. Cannot be {@code null}. */
-  default ClajPinger newPinger() { return new ClajPinger(); }
+  default ClajPinger newPinger() { return new ClajPinger(this); }
+  
+  /** 
+   * The implementation type, used to validate compatibility between room host and clients. <br>
+   * Can be {@code null} to not make any validation (not recommended). <br>
+   * This means that if the room host doesn't specify it, 
+   * any CLaJ implementation can join the room at the cost of possible deserialization errors. <br>
+   * And if a client doesn't specify it, the CLaJ server is free to reject it or not.
+   */
+  ClajType getType();
+  /** 
+   * The implementation's major version, used to request a room creation. <br>
+   * Must be equals to the server. 
+   */
+  int getVersion();
   
   /** Listener added to all virtual connections. Can be {@code null}. */
   default NetListener getConnectionListener() { return null; }
-  /** The implementation's major version, used to request a room creation. Must be equals to the server. */
-  int getVersion();
-  /** The actual room state. Will be sent periodically to the server. Can be {@code null} to not provide state. */
+  
+  /** 
+   * The actual room state. Will be requested by the server if needed. <br>
+   * Can be {@code null} to not provide state. 
+   */
   default GameState getRoomState(ClajProxy proxy) { return null; }
   /** 
    * Connect the client to the specified server. <br>

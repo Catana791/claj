@@ -78,19 +78,19 @@ public class StreamSender extends InputStreamSender {
     return send(connection, packet, 4096);
   }
 
-  /** Returns {@code null} if no stream chunking was needed. */
+  ///** Returns {@code null} if no stream chunking was needed. */
   public static StreamSender send(Connection connection, Packet packet, int chunkSize) {
     byte id = ClajNet.getId(packet); // will check if the packet is registered
-    ByteArrayBufferOutput buff = new ByteArrayBufferOutput(true);
+    ByteArrayBufferOutput buff = new ByteArrayBufferOutput(chunkSize / 2, true);
     
     packet.write(buff);
     int size = buff.back.size();
-    
-    if (size < chunkSize) {
-      // Send raw buffer to avoid serializing twice
-      connection.sendTCP(buff.buffer.flip());
-      return null;
-    }
+
+    //if (size < chunkSize) {
+    //  // Send raw buffer to avoid serializing twice
+    //  connection.sendTCP(buff.buffer.flip());
+    //  return null;
+    //}
 
     InputStream in = new ByteArrayInputStream(buff.back.getBytes(), 0, size);
     return new StreamSender(connection, in, id, size, chunkSize, buff.compressed);

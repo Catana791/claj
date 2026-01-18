@@ -37,10 +37,11 @@ public class ByteArrayBufferOutput extends ByteBufferOutput {
   public final DataOutputStream stream;
   public final boolean compressed;
   
-  public ByteArrayBufferOutput() { this(false); }
-  public ByteArrayBufferOutput(boolean compress) {
+  public ByteArrayBufferOutput() { this(512, false); }
+  public ByteArrayBufferOutput(int initialCapacity) { this(initialCapacity, false); }
+  public ByteArrayBufferOutput(int initialCapacity, boolean compress) {
     super(null);
-    back = new ReusableByteOutStream();
+    back = new ReusableByteOutStream(initialCapacity);
     stream = new DataOutputStream(compress ? new FastDeflaterOutputStream(back) : back);
     buffer = ByteBuffer.wrap(back.getBytes());
     compressed = compress;

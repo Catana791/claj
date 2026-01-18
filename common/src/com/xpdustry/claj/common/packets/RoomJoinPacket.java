@@ -22,20 +22,29 @@ package com.xpdustry.claj.common.packets;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
+import com.xpdustry.claj.common.status.ClajType;
+
+
 public class RoomJoinPacket extends RoomLinkPacket {
+  /** Room pin password. */
   public short password = -1;
+  /** CLaJ Implementation type. 16 bytes max. */
+  public ClajType type;
   
   @Override
   protected void readImpl(ByteBufferInput read) {
     super.readImpl(read);
     // Make it compatible with older versions where room password wasn't here
     // This will only work if the room doesn't have a password set
-    password = read.buffer.hasRemaining() ? read.readShort() : -1;
+    boolean remaining = read.buffer.hasRemaining();
+    password = remaining ? read.readShort() : -1;
+    type = remaining ? ClajType.read(read.buffer) : null;
   }
   
   @Override
   public void write(ByteBufferOutput write) {
     super.write(write);
     write.writeShort(password);
+    type.write(write.buffer);
   }
 }

@@ -151,7 +151,7 @@ public class ClajProxy extends ProxyClient {
   
   public void requestRoomId() {
     if (roomCreated()) return;
-    sendTCP(makeRoomCreatePacket(provider.getVersion()));
+    sendTCP(makeRoomCreatePacket(provider.getVersion(), provider.getType()));
   }
   
   public void notifyConfiguration() {
@@ -179,9 +179,10 @@ public class ClajProxy extends ProxyClient {
     return p;
   }
   
-  protected Object makeRoomCreatePacket(int majorVersion) {
+  protected Object makeRoomCreatePacket(int version, ClajType type) {
     RoomCreationRequestPacket p = new RoomCreationRequestPacket();
-    p.majorVersion = majorVersion;
+    p.version = version;
+    p.type = type;
     return p;
   }
   

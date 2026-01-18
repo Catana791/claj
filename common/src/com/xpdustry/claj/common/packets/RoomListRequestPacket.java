@@ -19,5 +19,24 @@
 
 package com.xpdustry.claj.common.packets;
 
+import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 
-public class RoomListRequestPacket implements Packet {}
+import com.xpdustry.claj.common.status.ClajType;
+
+
+public class RoomListRequestPacket extends DelayedPacket {
+  /** Implementation type to request the list from. Cannot be {@code null}. */
+  public ClajType type;
+  
+  @Override
+  protected void readImpl(ByteBufferInput read) {
+    type = ClajType.read(read.buffer);
+  }
+
+  @Override
+  public void write(ByteBufferOutput write) {
+    type.write(write.buffer);
+  }
+  
+}

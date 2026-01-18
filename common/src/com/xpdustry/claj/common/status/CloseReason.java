@@ -32,7 +32,9 @@ public enum CloseReason {
   /** Old CLaJ server. */
   outdatedServer,
   /** Server is shutting down. */
-  serverClosed;
+  serverClosed,
+  /** The CLaJ server doesn't allows the provided implementation. */
+  blacklisted;
   
   public static final CloseReason[] all = values();
 }

@@ -70,7 +70,7 @@ public class ClajProxyManager {
   public ClajProxy ensureStarted(int index) {
     ClajProxy proxy = get(index);
     // TODO: this probably fixes the issue where the room keeps closing when switching of app on android
-    if (!proxy.isRunning()) Threads./*deamon*/thread(getProxyName(index), proxy); 
+    if (!proxy.isRunning()) Threads./*daemon*/thread(getProxyName(index), proxy); 
     return proxy;
   }
   
@@ -193,7 +193,7 @@ public class ClajProxyManager {
     ClajProxy proxy = ensureStarted(index);
     reserved[index] = true;
       
-    provider.getExecutor().submit(() -> {
+    Runnable task = () -> {
       proxy.connect(host, port, created, reason -> {
         if (closed != null) closed.get(reason);
         reserved[index] = false;
@@ -201,7 +201,10 @@ public class ClajProxyManager {
         if (failed != null) failed.get(error);
         reserved[index] = false;
       });
-    });
+    };
+    
+    if (provider.getExecutor() == null) task.run();
+    else provider.getExecutor().submit(task);
     
     return proxy;
   }

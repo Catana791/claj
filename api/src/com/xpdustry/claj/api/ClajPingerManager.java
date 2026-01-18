@@ -66,7 +66,7 @@ public class ClajPingerManager {
   
   public ClajPinger ensurePingerCreated(int index) {
     if (pingers[index] == null) {
-      pingers[index] = new ClajPinger();
+      pingers[index] = provider.newPinger();
       created++;
     }
     return pingers[index];
@@ -166,12 +166,15 @@ public class ClajPingerManager {
   protected void submit(int index, Cons2<ClajPinger, Runnable> task) {
     reserved[index] = true;
     ClajPinger pinger = get(index);
-    provider.getExecutor().submit(() -> task.get(pinger, () -> {
+    Runnable t = () -> task.get(pinger, () -> {
       //arc.util.Log.info("pinger @ finished. queue empty? @", index, queue.isEmpty());
       if (pinger.canceling || queue.isEmpty()) reserved[index] = false;
       // Keep reserved, execute next
       else submit(index, queue.removeFirst());
-    }));
+    });
+    
+    if (provider.getExecutor() == null) t.run();
+    else provider.getExecutor().submit(t);
   }
 
   public void joinRoom(ClajLink link, Runnable success, Cons<RejectReason> reject, Cons<Exception> failed) {
@@ -183,7 +186,6 @@ public class ClajPingerManager {
     if (link == null) return;
     submit((pinger, finished) -> {
       pinger.joinRoom(link.host, link.port, link.roomId, password, () -> {
-        // Need to run on main thread for vars access
         provider.connectClient(link.host, link.port, success);
         finished.run();
       }, reason -> {

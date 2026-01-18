@@ -25,7 +25,7 @@ Or you can download the mod file from the [releases section](https://github.com/
 Start and host a map as normal (or your campaign): ``Host Multiplayer Game`` **>** ``Host``. <br>
 Then go to ``Manage CLaJ Room``, select a server (or add your own), now ``Create Room`` and wait for the room to be created, click ``Copy Link`` and send the copied link to your friends.
 
-To join, it's simple, copy the link your friend sent you, open your game, go to ``Play`` **>** ``Join Game`` **>** ``Join via CLaJ``, paste the link and ``OK``.
+To join, it's simple, copy the link your friend sent you, open your game, go to ~~``Play`` **>** ``Join Game`` **>** ``Join via CLaJ``~~ ``Play`` **>** ``Join via CLaJ`` **>** ``Use Link``, paste the link and ``OK``.
 
 Now, if all goods, you can play with your friends, so enjoy =).
 
@@ -67,7 +67,7 @@ The CLaJ server can be modded using plugins that are located in the ``plugins/``
 They work the same way as [Mindustry mods](https://mindustrygame.github.io/wiki/modding/2-plugins/), but only handles Java ones (not json and js) and doesn't handles sprites, icon, bundles, and others things designed for client-side.
 
 The plugin file can therefore only be ``plugin.json`` or ``plugin.hjson``, and some properties are removed. <br>
-Such as ``java`` because these can only be	Java plugins, or ``texturescale`` because there is no texture handling on servers.
+Such as ``java`` because these can only be Java plugins, or ``texturescale`` because there is no texture handling on servers.
 
 Supported plugin properties: 
 * ``name`` *[required]*: The plugin name, in lower case with no spaces (use '`-`'instead) and color formatting.
@@ -79,3 +79,19 @@ Supported plugin properties:
 * ``main`` *[required]*: The plugin's fully qualified main class. Must implements ``com.xpdustry.claj.server.plugin.Plugin``.
 * ``dependencies`` *[optional]*: The list of required dependencies. ([Further information](https://mindustrygame.github.io/wiki/modding/1-modding/#dependencies))
 * ``softDependencies`` *[optional]*: The list of optional dependencies.
+
+
+## Developers
+CLaJ is not only available for Mindustry. <br>
+In fact, this system doesn't care about what's transferred between the server, clients, and host. Only communications using the CLaJ protocol are important.
+
+The project is designed to be modular, and is divided into several modules:
+* ``common``: Contains the CLaJ protocol packets, packet handling, enums and some utilities.
+* ``api``: Provides the client-side core layer, aka the proxy, handling the CLaJ logic with easy methods.
+* ``client``: The Mindustry CLaJ implementation, also providing UI to manages CLaJ.
+* ``server``: The relay server, managing packet redirection between room host and clients.
+
+To integrate CLaJ into another game or application, the only requirements is to implement the `ClajProvider` interface, and call methods from the `Claj` class.
+
+CLaJ uses the [Arc framework](https://github.com/Anuken/Arc/) for its optimized utilities, but it's also a very versatile framework (containing graphics, audio and keyboard input management, etc). <br>
+So to avoid including the entire framework, you can use [arc-lite](https://github.com/xpdustry/arc-lite) (which is a lightweight version that removes all client-related elements) with the [gradle shadow plugin](https://github.com/GradleUp/shadow), to remove anything not used by your project.

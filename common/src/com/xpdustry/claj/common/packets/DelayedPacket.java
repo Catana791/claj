@@ -22,6 +22,7 @@ package com.xpdustry.claj.common.packets;
 import java.nio.ByteBuffer;
 
 import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 
 
 /** 
@@ -51,4 +52,5 @@ public abstract class DelayedPacket implements Packet {
   }
   
   protected abstract void readImpl(ByteBufferInput read);
+  public abstract void write(ByteBufferOutput write);
 }

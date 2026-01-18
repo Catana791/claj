@@ -28,7 +28,9 @@ public enum RejectReason {
   /** A password is required to join the room. */
   passwordRequired,
   /** The provided password is invalid. */
-  invalidPassword;
+  invalidPassword,
+  /** The CLaJ implementation of the room host is not the same as the provided one. */
+  incompatible;
   
   public static final RejectReason[] all = values();
 }

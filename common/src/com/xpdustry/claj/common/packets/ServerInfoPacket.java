@@ -22,6 +22,7 @@ package com.xpdustry.claj.common.packets;
 import arc.util.io.ByteBufferInput;
 
 
+//TODO: not reliable, must be a packet sent/received another way than standard one.
 public class ServerInfoPacket extends RoomCreationRequestPacket {
   @Override
   protected void readImpl(ByteBufferInput read) { 
@@ -29,7 +30,7 @@ public class ServerInfoPacket extends RoomCreationRequestPacket {
     // This can be used to determine whether this is an old CLaJ server or not.
     // Because on older versions, no discovery was configured.
     // Note: since an empty buffer can be received, this packet is also hard-coded into the api serializer.
-    if (!read.buffer.hasRemaining()) majorVersion = 0;
+    if (!read.buffer.hasRemaining()) version = 0;
     else super.readImpl(read);
   }
 }

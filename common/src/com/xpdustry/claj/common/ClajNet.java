@@ -28,6 +28,7 @@ import com.xpdustry.claj.common.packets.Packet;
 
 
 public class ClajNet {
+  /** Identifier for framework messages. */
   public static final byte frameworkId = -2;
   /** Old CLaJ id. */
   public static final byte oldId = -3;

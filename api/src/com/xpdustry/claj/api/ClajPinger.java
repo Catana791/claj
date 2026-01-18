@@ -46,6 +46,7 @@ public class ClajPinger extends Client {
   public static int defaultTimeout = 5000; //ms
   public static int defaultPingTimeout = 5000; //ms
 
+  protected final ClajProvider provider;
   protected String connectHost;
   protected int connectPort;
   protected volatile boolean shutdown = true, connecting;
@@ -67,8 +68,9 @@ public class ClajPinger extends Client {
   protected volatile long requestedRoom = -1;
   protected volatile boolean joining;
 
-  public ClajPinger() {
+  public ClajPinger(ClajProvider provider) {
     super(8192, 8192, new ClajSerializer());
+    this.provider = provider;
     ClientReceiver receiver = new ClientReceiver(this, false); // no need to delegate to the main thread
 
     receiver.handle(RoomJoinAcceptedPacket.class, p -> {
@@ -85,7 +87,7 @@ public class ClajPinger extends Client {
     });
     
     receiver.handle(ServerInfoPacket.class, p -> {
-      runPingSuccess(p.majorVersion);
+      runPingSuccess(p.version);
     });
   }
 
@@ -320,13 +322,16 @@ public class ClajPinger extends Client {
   }
   
   protected void requestRoomList() {
-    sendTCP(new RoomListRequestPacket());
+    RoomListRequestPacket p = new RoomListRequestPacket();
+    p.type = provider.getType();
+    sendTCP(p);
   }
   
   protected void requestRoomJoin(long roomId, short password) {
     RoomJoinPacket p = new RoomJoinPacket();
     p.roomId = roomId;
     p.password = password;
+    p.type = provider.getType();
     sendTCP(p);
   }
 }

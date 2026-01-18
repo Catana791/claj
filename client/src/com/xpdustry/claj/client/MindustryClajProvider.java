@@ -47,6 +47,16 @@ public class MindustryClajProvider implements ClajProvider {
   public static final Server mindustryServer;
   public static final NetListener mindustryServerDispatcher;
   public static final PacketSerializer mindustrySerializer;
+  /** 
+   * CLaJ versions are always in format: {@code protocolType.majorVersion.minorVersion}. <br>
+   * Only {@code majorVersion} is important. <br>
+   * {@code protocolType} is discarded, as it's always {@code 2} (for this project). 
+   * Different CLaJ types must not be compatible with each others. <br>
+   * As well as {@code minorVersion}, because it's represents changes that doesn't affect the protocol itself.
+   */
+  public static final int majorVersion;
+  /** CLaJ type is {@code "Mindustry"} for this implementation. */
+  public static final ClajType implType;
 
   static {
     NetProvider provider = Reflect.get(Vars.net, "provider");
@@ -55,6 +65,8 @@ public class MindustryClajProvider implements ClajProvider {
     mindustryServer = Reflect.get(mindustryProvider, "server");
     mindustryServerDispatcher = Reflect.get(mindustryServer, "dispatchListener");
     mindustrySerializer = new PacketSerializer();
+    majorVersion = Integer.parseInt(Main.getMeta().version.split("\\.")[1]);
+    implType = new ClajType("Mindustry");
   }
 
   @Override
@@ -68,21 +80,18 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   @Override
-  public NetListener getConnectionListener() {
-    return mindustryServerDispatcher; 
+  public ClajType getType() { 
+    return implType; 
   }
 
-  /** 
-   * CLaJ versions are always in format: {@code protocolType.majorVersion.minorVersion}. <br>
-   * Only {@code majorVersion} is important. <br>
-   * {@code protocolType} is discarded, as it's always {@code 2} (for this project). 
-   * Different CLaJ types must not be compatible with each others. <br>
-   * As well as {@code minorVersion}, because it's represents changes that doesn't affect the protocol itself.
-   */
-  final int majorVersion = Integer.parseInt(Main.getMeta().version.split("\\.")[1]);
   @Override
   public int getVersion() { 
     return majorVersion; 
+  }
+
+  @Override
+  public NetListener getConnectionListener() {
+    return mindustryServerDispatcher; 
   }
 
   @Override
