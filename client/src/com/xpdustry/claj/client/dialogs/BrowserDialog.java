@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -61,38 +61,38 @@ import com.xpdustry.claj.common.status.GameState;
 public class BrowserDialog extends BaseDialog {
   public static float MIN_CARD_SIZE = 400f, MAX_CARD_SIZE = 500f, SCREEN_MAX = 0.9f;
   public static int MAX_COLUMNS = 6;
-  
+
   boolean refreshingList;
   String serverSearch = "";
   final TextButtonStyle style;
   final Table hosts = new Table();
-  
+
   final ObjectSet<Server> refreshing = new ObjectSet<>();
   final ObjectMap<Server, Seq<ClajRoom>> serverRooms = new ObjectMap<>();
   final ObjectMap<Server, Table> servers = new ObjectMap<>();
-  
+
   //final BrowserDialogTest test = new BrowserDialogTest();
-  
+
   public BrowserDialog() {
     super("@claj.browser.title");
     makeButtonOverlay();
     addCloseButton(Vars.mobile ? 190f : 210f);
     buttons.button("@claj.join.name", Icon.play, ClajUi.join::show);
-    
+
     style = Reflect.get(Vars.ui.join, "style"); // just too lazy
-    
+
     keyDown(KeyCode.f5, this::refreshAll);
     shown(() -> {
       setup();
       refreshAll();
     });
     onResize(this::rebuild);
-    
+
     // Add the CLaJ browser button bellow Play > Load Save on PC, and after Quit button on mobile
     addButton();
     Events.run(EventType.ResizeEvent.class, this::addButton);
   }
-  
+
   void addButton() {
     // Cannot easily get the container
     Table menu = locateMenu("buttons");
@@ -101,11 +101,11 @@ public class BrowserDialog extends BaseDialog {
     if (Vars.mobile) {
       if (Core.graphics.isPortrait()) menu.row();
       menu.add(new MobileButton(Icon.host, "@claj.browser.name", () -> checkPlay(this::show)));
-      
+
     } else {
       Table submenu = locateMenu("submenu");
       if (submenu == null) return;
-      
+
       // Dynamically adds the claj browser button, since this is the only way in v7
       menu.getCells().first().get().clicked(() -> {
         if (submenu.find("claj-browser") != null) return; // avoids button duplication
@@ -114,7 +114,7 @@ public class BrowserDialog extends BaseDialog {
           Reflect.set(Vars.ui.menufrag, "currentMenu", null);
           Reflect.invoke(Vars.ui.menufrag, "fadeOutMenu");
         }).marginLeft(11f).with(b -> b.name = "claj-browser").row();
-      });  
+      });
     }
 
     // Replace by this when v7 support is dropped
@@ -135,18 +135,18 @@ public class BrowserDialog extends BaseDialog {
     }
     */
   }
- 
+
   public void rebuild() {
     setup();
     if (refreshingList) return;
-    
+
     servers.clear();
     for (var e : ClajServers.online) {
       // For parsing
       Server temp = new Server();
       temp.name = e.key;
       temp.set(e.value);
-      
+
       Server server = null;
       for (Server s : serverRooms.keys()) {
          if (s.address != null && s.address.equals(temp.address) && s.port == temp.port) {
@@ -155,15 +155,15 @@ public class BrowserDialog extends BaseDialog {
          }
       }
       if (server == null) server = temp;
-      
+
       Table rooms = new Table().top().left();
       servers.put(server, rooms);
-      
-      final Server server0 = server; 
+
+      final Server server0 = server;
       section(e.key, e.value, rooms, hosts, () -> refreshServer(server0, rooms));
       if (!serverRooms.containsKey(server)) refreshServer(server, rooms);
     }
-    
+
     filterRooms();
   }
 
@@ -180,16 +180,16 @@ public class BrowserDialog extends BaseDialog {
       t.add("@claj.servers.fetching").padRight(3);
       t.label(() -> Strings.animated(Time.time, 4, 11, ".")).color(Pal.accent);
     }).center().growX().padTop(5).padBottom(5);
-    
+
     ClajServers.refreshOnline/*test.mockRefreshOnline*/(() -> {
       refreshingList = false;
       hosts.clear();
-      
+
       for (var e : ClajServers.online) {
         Server server = new Server();
         server.name = e.key;
         server.set(e.value);
-        
+
         Table rooms = new Table().top().left();
         section(e.key, e.value, rooms, hosts, () -> refreshServer(server, rooms));
         refreshServer(server, rooms);
@@ -207,17 +207,17 @@ public class BrowserDialog extends BaseDialog {
     servers.put(server, table);
     pingAndListServer(server, table, () -> refreshing.remove(server), e -> refreshing.remove(server));
   }
-    
+
   public void pingAndListServer(Server server, Table dest, Runnable done, Cons<Exception> error) {
     dest.clear();
     dest.table(inner -> {
       Table label = new Table().center();
       Table ping = new Table().left();
       inner.stack(label, ping).growX().row();
-      
+
       label.add("@claj.browser.listing").padTop(5).padBottom(5);
       label.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(5, 3, 5, 0).color(Pal.accent);
-      
+
       Claj.get().pingHost/*test.mockPingHost*/(server.address, server.port, s -> {
         server.compatible = s.majorVersion() == Claj.get().provider.getVersion();
         server.outdated = s.majorVersion() < Claj.get().provider.getVersion();
@@ -238,10 +238,10 @@ public class BrowserDialog extends BaseDialog {
         ping.image(Icon.cancel, Color.red).left();
         label.add("@claj.browser.timeout");
         error.get(e);
-      });      
+      });
     }).padLeft(10).padRight(10).growX().row();
   }
-  
+
   public void listRooms(Server server, Table dest, Runnable done, Cons<Exception> error) {
     int columns = columns();
     Claj.get().serverRooms/*test.mockServerRooms*/(server.address, server.port, r -> {
@@ -271,7 +271,7 @@ public class BrowserDialog extends BaseDialog {
   public boolean isHidden(GameState state) {
     if (serverSearch.isEmpty()) return false;
     return state == null
-        || !Strings.stripColors(state.name()).toLowerCase().contains(serverSearch) 
+        || !Strings.stripColors(state.name()).toLowerCase().contains(serverSearch)
         && !Strings.stripColors(state.mapname()).toLowerCase().contains(serverSearch)
         && !(state.modeName() != null && Strings.stripColors(state.modeName()).toLowerCase().contains(serverSearch))
         && !(state.mode() != null && state.mode().name().toLowerCase().contains(serverSearch));
@@ -281,7 +281,7 @@ public class BrowserDialog extends BaseDialog {
     GameState state = room.state;
     float w = targetWidth(), tw = w - 20f;
     String versionString = getVersionString(state);
-    
+
     dest.button(inner -> {
       inner.table(Tex.whiteui, title -> {
         title.setColor(Pal.gray);
@@ -291,7 +291,7 @@ public class BrowserDialog extends BaseDialog {
                .self(c -> c.padTop(versionString.isEmpty() ? 5 : 3));
           if (!versionString.isEmpty())
             title.row().add(versionString, Styles.outlineLabel).padLeft(10).width(tw).growX().left().ellipsis(true);
-        }         
+        }
       }).height(40f).growX().row();
 
       inner.stack(new Table(Tex.whitePane, desc -> {
@@ -305,22 +305,22 @@ public class BrowserDialog extends BaseDialog {
         desc.top().left();
         desc.add("[lightgray]" + (Core.bundle.format(
           "players" + (state.players() == 1 && state.playerLimit() <= 0 ? ".single" : ""),
-            (state.players() == 0 ? "[lightgray]" : "[accent]") + state.players() + 
+            (state.players() == 0 ? "[lightgray]" : "[accent]") + state.players() +
             (state.playerLimit() > 0 ? "[lightgray]/[accent]" + state.playerLimit() : "") + "[lightgray]")
         )).left().ellipsis(true).row();
-        desc.add("[lightgray]" + 
-                 Core.bundle.format("save.map", "[accent]" + state.mapname()) + 
-                 "[lightgray] / [accent]" + 
+        desc.add("[lightgray]" +
+                 Core.bundle.format("save.map", "[accent]" + state.mapname()) +
+                 "[lightgray] / [accent]" +
                  (state.modeName() == null ? state.mode().toString() : state.modeName())
         ).width(tw - 10).left().ellipsis(true).row();
         desc.add("[lightgray]" + Core.bundle.format("save.wave", "[accent]" + state.wave())).left()
             .ellipsis(true).padBottom(10).row();
-        
+
       }), new Table(t -> {
         t.bottom().right();
         t.table(Tex.whiteui, foot -> {
           foot.setColor(Pal.gray);
-          if (room.isProtected) 
+          if (room.isProtected)
             foot.image(Icon.lock).padLeft(10).padBottom(7).padRight(-5).left().size(20).get().setScale(0.55f);
           foot.add(room.link.encodedRoomId, Color.lightGray, 0.8f).padLeft(5).padBottom(-2).padRight(3).growX().right().labelAlign(Align.right);
         }).minWidth(/*w*/ MIN_CARD_SIZE / 3f).height(20f).pad(5).right();
@@ -328,7 +328,7 @@ public class BrowserDialog extends BaseDialog {
     }, style, () -> ClajUi.join.joinRoom(room.link, room.isProtected)
     ).width(w).padBottom(7f).padRight(4f).top().left().growY();
   }
-  
+
   public void section(String name, String host, Table src, Table dest, Runnable refresh) {
     Collapser coll = new Collapser(src, Core.settings.getBool("claj-collapsed-" + name, false));
     dest.table(head -> {
@@ -340,7 +340,7 @@ public class BrowserDialog extends BaseDialog {
         }).pad(5).padLeft(10).growX();
       } else {
         head.add(name, Pal.accent).pad(5).padLeft(10).left().bottom();
-        head.add('(' + host + ')', Pal.lightishGray).pad(5).growX().left().bottom(); 
+        head.add('(' + host + ')', Pal.lightishGray).pad(5).growX().left().bottom();
       }
       if (refresh != null)
         head.button(Icon.refresh, Styles.emptyi, refresh).size(40f).padRight(3).right()
@@ -353,9 +353,9 @@ public class BrowserDialog extends BaseDialog {
         .tooltip(t -> t.label(() -> "@claj.browser.rooms." + (coll.isCollapsed() ? "show" : "hide")));
     }).padTop(10).growX().row();
     dest.image().pad(5, 10, 5, 16).height(3).color(Pal.accent).growX().row();
-    dest.add(coll).pad(5).padRight(0).padBottom(10).growX().row();  
+    dest.add(coll).pad(5).padRight(0).padBottom(10).growX().row();
   }
-  
+
   public void checkPlay(Runnable run) {
     if (!Vars.mods.hasContentErrors()) run.run();
     else Vars.ui.showInfo("@mod.noerrorplay");
@@ -379,11 +379,11 @@ public class BrowserDialog extends BaseDialog {
       });
     }
   }
-  
+
   void setup() {
     float width = targetWidth();
     int columns = columns();
-    
+
     hosts.clear();
     //since the buttons are an overlay, make room for that
     hosts.marginBottom(70f);
@@ -404,7 +404,7 @@ public class BrowserDialog extends BaseDialog {
         });
       }).size(54f).update(b -> b.getStyle().imageUpColor = Vars.player.color());
     }).width(columns == 1 ? width : MIN_CARD_SIZE * Math.min(1.5f, columns)).height(70f).pad(4).row();
-    
+
     cont.table(search -> {
       search.add("@search").padRight(10);
       search.field(serverSearch, text -> {
@@ -414,11 +414,11 @@ public class BrowserDialog extends BaseDialog {
       search.button(Icon.zoom, Styles.emptyi, this::refreshAll).size(54f);
       search.button(Icon.refresh, Styles.emptyi, this::refreshAll).size(54f).tooltip("@servers.refresh");
     }).width(columns == 1 ? width : MIN_CARD_SIZE * Math.min(2, columns)) .height(50f).pad(4).padBottom(25).row();
-    
+
     cont.pane(hosts).width((width + 5) * columns + 33).pad(0).get().setScrollingDisabled(true, false);
     cont.row();
   }
-  
+
   /** {@link mindustry.ui.dialogs.JoinDialog#getVersionString}. */
   public String getVersionString(GameState host) {
     if (host == null) {
@@ -437,12 +437,12 @@ public class BrowserDialog extends BaseDialog {
       return Core.bundle.format("server.version", host.version(), host.versionType());
     }
   }
-  
+
   /** 90% of the screen width. */
   public float maxWidth() {
     return  Core.graphics.getWidth() / Scl.scl() * SCREEN_MAX;
   }
-  
+
   /** adaptative card size. */
   public float targetWidth() {
     return Math.min(maxWidth() / columns(), MAX_CARD_SIZE);

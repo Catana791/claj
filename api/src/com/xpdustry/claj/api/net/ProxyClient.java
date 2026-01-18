@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -31,7 +31,7 @@ import com.xpdustry.claj.common.net.*;
 import com.xpdustry.claj.common.util.Structs;
 
 
-/** 
+/**
  * A client that act like a server. Discovery is not supported for now (i don't have the use). <br>
  * The proxy doesn't do all the job: <br>
  * - Packet reception must be done manually. <br>
@@ -47,23 +47,23 @@ public abstract class ProxyClient extends Client {
   protected InetAddress connectHost;
   protected int connectTcpPort;
   protected int connectUdpPort;
-    
+
   /** For faster get. */
   protected final IntMap<VirtualConnection> connectionsMap = new IntMap<>();
   /** For faster iteration. */
   protected VirtualConnection[] connections = {};
-  protected final NetListener conListener; 
+  protected final NetListener conListener;
   protected volatile boolean shutdown = true, ignoreExceptions, connecting;
   protected ClientReceiver receiver;
-  
-  public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization, 
-                     NetListener conListener) { 
-    super(writeBufferSize, objectBufferSize, serialization); 
+
+  public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization,
+                     NetListener conListener) {
+    super(writeBufferSize, objectBufferSize, serialization);
     this.conListener = conListener;
     receiver = new ClientReceiver(this);
   }
 
-  /** 
+  /**
    * Connect used {@link #defaultTimeout} and same {@code port} for TCP and UDP. <br>
    * This also ensures that the client is running before connection.
    */
@@ -71,7 +71,7 @@ public abstract class ProxyClient extends Client {
     if (!isRunning()) start();
     connect(defaultTimeout, host, port, port);
   }
-  
+
   @Override
   public void connect(int timeout, InetAddress host, int tcpPort, int udpPort) throws IOException {
     connecting = true;
@@ -80,10 +80,10 @@ public abstract class ProxyClient extends Client {
     connectTcpPort = tcpPort;
     connectUdpPort = udpPort;
     try { super.connect(timeout, host, tcpPort, udpPort); }
-    finally { connecting = false; } 
+    finally { connecting = false; }
   }
- 
-  /** 
+
+  /**
    * Ignore exceptions when possible, and maintain idle state of virtual connections. <br>
    * This also tries to ignore errors, to avoid stopping the proxy every time a virtual connection is doing a mess.
    */
@@ -97,8 +97,8 @@ public abstract class ProxyClient extends Client {
         for (VirtualConnection c : connections) {
           if (c.isIdle()) c.notifyIdle0();
         }
-      } catch (IOException ex) { 
-        close(); 
+      } catch (IOException ex) {
+        close();
       } catch (ArcNetException ex) {
         if (ignoreExceptions) Log.err("Ignored Exception", ex);
         else {
@@ -110,7 +110,7 @@ public abstract class ProxyClient extends Client {
       }
     }
   }
-  
+
   @Override
   public void start() {
     if (getUpdateThread() != null) {
@@ -121,7 +121,7 @@ public abstract class ProxyClient extends Client {
     }
     super.start();
   }
-  
+
   @Override
   public void stop() {
     if(shutdown) return;
@@ -132,34 +132,34 @@ public abstract class ProxyClient extends Client {
   public boolean isRunning() {
     return !shutdown;
   }
-  
+
   public boolean isConnecting() {
     return connecting;
   }
-  
+
   @Override
   public void close(DcReason reason) {
     // We cannot communicate with the server anymore, so close all virtual connections
     if (isConnected()) closeAllConnections(reason);
   }
-  
+
   public void closeAllConnections(DcReason reason) {
     for (VirtualConnection c : connections) c.closeQuietly(reason);
     clearConnections();
   }
-  
+
   public void addConnection(VirtualConnection con) {
     connectionsMap.put(con.getID(), con);
     // Connections are added at the start instead of end
     //connections = Structs.add(connections, con);
     connections = Structs.insert(connections, 0, con);
   }
-  
+
   public void removeConnection(VirtualConnection con) {
     connectionsMap.remove(con.getID());
     connections = Structs.remove(connections, con);
   }
-  
+
   public void clearConnections() {
     connectionsMap.clear();
     connections = new VirtualConnection[0];
@@ -168,7 +168,7 @@ public abstract class ProxyClient extends Client {
   public VirtualConnection getConnection(int id) {
     return connectionsMap.get(id);
   }
-  
+
   public VirtualConnection[] getConnections() {
     return connections;
   }
@@ -178,24 +178,24 @@ public abstract class ProxyClient extends Client {
     Object p = makeConWrapPacket(con.getID(), object, tcp);
     return tcp ? sendTCP(p) : sendUDP(p);
   }
-  
-  /** 
-   * Can be used notify the server to close the connection when not created by the proxy. 
+
+  /**
+   * Can be used notify the server to close the connection when not created by the proxy.
    * Indeed, this will not trigger callbacks.
    */
   protected void close(int conId, DcReason reason) {
     sendTCP(makeConClosePacket(conId, reason));
   }
-  
+
   public void close(VirtualConnection con, DcReason reason) {
     boolean wasConnected = con.isConnected();
     con.setConnected0(false);
     if(!wasConnected) return;
-    
+
     close(con.getID(), reason);
     con.notifyDisconnected0(reason);
   }
-  
+
   public void closeQuietly(VirtualConnection con, DcReason reason) {
     boolean wasConnected = con.isConnected();
     con.setConnected0(false);
@@ -204,41 +204,41 @@ public abstract class ProxyClient extends Client {
 
   // end region
   // region notifier
-  
+
   protected VirtualConnection conConnected(int conId, long addressHash) {
     VirtualConnection con = getConnection(conId);
     if (con == null) {
       con = new VirtualConnection(this, conId, addressHash);
       if (conListener != null) con.addListener(conListener);
-      addConnection(con);  
+      addConnection(con);
     }
     con.notifyConnected0();
     return con;
   }
-  
+
   protected VirtualConnection conDisconnected(int conId, DcReason reason) {
     VirtualConnection con = getConnection(conId);
     if (con != null) con.notifyDisconnected0(reason);
     return con;
   }
-  
+
   protected VirtualConnection conReceived(int conId, Object object) {
     VirtualConnection con = getConnection(conId);
     if (con != null) con.notifyReceived0(object);
     return con;
   }
-  
+
   protected VirtualConnection conIdle(int conId) {
     VirtualConnection con = getConnection(conId);
     if (con != null) con.notifyIdle0();
     return con;
   }
-  
+
   // end region
   // region packet making
-  
+
   protected abstract Object makeConWrapPacket(int conId, Object object, boolean tcp);
   protected abstract Object makeConClosePacket(int conId, DcReason reason);
-  
+
   // end region
 }

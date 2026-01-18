@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -36,7 +36,7 @@ public class Structs extends arc.util.Structs {
     next[index] = item;
     return next;
   }
-  
+
   @SafeVarargs
   public static <T> Iterable<T> generator(T... list) {
     return () -> new Iterator<>() {
@@ -45,7 +45,7 @@ public class Structs extends arc.util.Structs {
       public T next() { return list[index++]; }
     };
   }
-  
+
   public static <T, R> Iterable<R> generator(T[] list, Func<T, R> extractor) {
     return () -> new Iterator<>() {
       int index = 0;
@@ -53,7 +53,7 @@ public class Structs extends arc.util.Structs {
       public R next() { return extractor.get(list[index++]); }
     };
   }
-  
+
   public static <T> Iterable<T> generator(T[] list, Boolf<T> predicate) {
     return () -> new Iterator<>() {
       int index = 0;

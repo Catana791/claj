@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -35,14 +35,14 @@ import com.xpdustry.claj.common.util.Strings;
 
 public class RoomPasswordDialog extends BaseDialog {
   public static int digits = 4;
-  
+
   final TextField passwordField = new TextField();
   final TextButton connectButton;
   short password = ClajPinger.NO_PASSWORD;
   boolean valid;
   Cons<Short> confirm;
-  
-  public RoomPasswordDialog() { 
+
+  public RoomPasswordDialog() {
     super("");
     cont.defaults().width(350f);
     buttons.defaults().size(140f, 60f).pad(4f);
@@ -53,7 +53,7 @@ public class RoomPasswordDialog extends BaseDialog {
       passwordField.setFilter(TextFieldFilter.digitsOnly);
       passwordField.update(passwordField::requestKeyboard);
     }).padBottom(75f).row();
-    
+
     cont.table(table -> {
       table.defaults().size(74, 64).pad(5);
       int i = 0;
@@ -66,33 +66,33 @@ public class RoomPasswordDialog extends BaseDialog {
       }
       table.button(Icon.undo, this::popLetter);
     });
-    
+
     connectButton = buttons.button("@claj.password.connect", this::confirm).disabled(b -> !valid).get();
     buttons.button("@cancel", this::hide);
-    
+
     hidden(() -> {
       Time.run(7f, passwordField::clearText); // delay clear for visual
       password = ClajPinger.NO_PASSWORD;
-    }); 
+    });
     addCloseListener();
     keyDown(KeyCode.enter, connectButton::fireClick);
   }
-  
+
   protected void addLetter(String l) {
     passwordField.appendText(l);
   }
-  
+
   protected void popLetter() {
     // No easy way to pop a letter
     passwordField.setText(passwordField.getText().substring(0, Math.max(0, passwordField.getText().length()-1)));
     passwordField.setCursorPosition(passwordField.getMaxLength());
   }
-  
+
   protected void confirm() {
     hide();
     confirm.get(password);
   }
-  
+
   protected boolean validate(String password) {
     valid = password.length() == digits && Strings.matches(password, Character::isDigit);
     if (valid) {
@@ -100,11 +100,11 @@ public class RoomPasswordDialog extends BaseDialog {
       this.password = parsed < Short.MIN_VALUE || parsed > Short.MAX_VALUE ? -1 : (short)parsed;
     }
     return valid;
-  }  
-  
+  }
+
   public void show(Cons<Short> confirmed) { show(confirmed, true); }
-  /** 
-   * @param connectMode Defines whether this dialog should be displayed 
+  /**
+   * @param connectMode Defines whether this dialog should be displayed
    *        as a prompt to connect to a room ({@code true}) or to set his password ({@code false}).
    */
   public void show(Cons<Short> confirmed, boolean connectMode) {

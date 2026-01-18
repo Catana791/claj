@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -37,33 +37,33 @@ public class ClajPingerManager {
   protected final ClajPinger[] pingers;
   protected final boolean[] reserved;
   protected final Queue<Cons2<ClajPinger, Runnable>> queue = new Queue<>();
-  
+
   public ClajPingerManager(ClajProvider provider, int workers) {
     this.workers = workers;
     this.provider = provider;
     pingers = new ClajPinger[workers];
     reserved = new boolean[workers];
   }
-  
+
   public String getPingerName(int index) {
     return workers == 1 ? "Claj Pinger" : "Claj Pinger " + (index+1);
   }
   public boolean hasCreatedPingers() {
     return created > 0;
   }
-  
+
   public int createdPingers() {
     return created;
   }
-  
+
   public int pingers() {
     return workers;
   }
-  
+
   public ClajProvider provider() {
     return provider;
   }
-  
+
   public ClajPinger ensurePingerCreated(int index) {
     if (pingers[index] == null) {
       pingers[index] = provider.newPinger();
@@ -74,7 +74,7 @@ public class ClajPingerManager {
 
   public ClajPinger ensurePingerProxyStarted(int index) {
     ClajPinger pinger = get(index);
-    if (!pinger.isRunning()) Threads.daemon(getPingerName(index), pinger); 
+    if (!pinger.isRunning()) Threads.daemon(getPingerName(index), pinger);
     return pinger;
   }
 
@@ -83,17 +83,17 @@ public class ClajPingerManager {
   public ClajPinger get(int index) {
     return ensurePingerCreated(index);
   }
-  
+
   public ClajPinger getOrNull(int index) {
     return pingers[index];
   }
-  
+
   /** Search for a pinger that's not working. */
   public ClajPinger findFree() {
     int index = findFreeI();
     return index == -1 ? null : get(index);
   }
-    
+
   public int findFreeI() {
     // First check if empty
     if (created == 0) {
@@ -113,13 +113,13 @@ public class ClajPingerManager {
     }
     return -1;
   }
-  
+
   public boolean isBusy(int index) {
     if (reserved[index]) return true;
     ClajPinger pinger = pingers[index];
-    return pinger != null && pinger.isWorking(); 
+    return pinger != null && pinger.isWorking();
   }
-  
+
   /** Dispose all pingers. */
   public void dispose() {
     stop();
@@ -127,10 +127,10 @@ public class ClajPingerManager {
       if (pinger == null) continue;
       pinger.stop();
       try { pinger.dispose(); }
-      catch (Exception ignored) {}  
+      catch (Exception ignored) {}
     }
   }
-  
+
   /** Stops all pingers and cancel the queue. */
   public void stop() {
     //arc.util.Log.info("manager start: @, @", Thread.currentThread().getName(), System.currentTimeMillis());
@@ -144,7 +144,7 @@ public class ClajPingerManager {
     if (!queue.isEmpty()) {
       // We don't care about who will receive the task, this will not block anyway
       while (!queue.isEmpty()) {
-        queue.removeFirst().get(get(), () -> {}); 
+        queue.removeFirst().get(get(), () -> {});
         //arc.util.Log.info("dequeueing: @", queue.size);
       }
     }
@@ -155,7 +155,7 @@ public class ClajPingerManager {
     }
     //arc.util.Log.info("manager out: @, @", Thread.currentThread().getName(), System.currentTimeMillis());
   }
-  
+
   /** Queue the task if all pingers are busy. */
   protected void submit(Cons2<ClajPinger, Runnable> task) {
     int index = findFreeI();
@@ -172,7 +172,7 @@ public class ClajPingerManager {
       // Keep reserved, execute next
       else submit(index, queue.removeFirst());
     });
-    
+
     if (provider.getExecutor() == null) t.run();
     else provider.getExecutor().submit(t);
   }
@@ -180,7 +180,7 @@ public class ClajPingerManager {
   public void joinRoom(ClajLink link, Runnable success, Cons<RejectReason> reject, Cons<Exception> failed) {
     joinRoom(link, ClajPinger.NO_PASSWORD, success, reject, failed);
   }
-  
+
   public void joinRoom(ClajLink link, short password, Runnable success, Cons<RejectReason> reject,
                        Cons<Exception> failed) {
     if (link == null) return;
@@ -210,7 +210,7 @@ public class ClajPingerManager {
       });
     });
   }
-  
+
   public void serverRooms(String ip, int port, Cons<Seq<ClajRoom>> rooms, Cons<Exception> failed) {
     submit((pinger, finished) -> {
       pinger.requestRoomList(ip, port, r -> {

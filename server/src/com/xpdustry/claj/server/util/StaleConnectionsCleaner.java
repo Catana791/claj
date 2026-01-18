@@ -1,17 +1,17 @@
 /**
  * This file is part of MoreCommands. The plugin that adds a bunch of commands to your server.
  * Copyright (c) 2025  ZetaMap
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -22,9 +22,9 @@ import arc.net.*;
 import arc.struct.*;
 
 
-/** 
+/**
  * Kick stale connections. <br>
- * New connections will be kicked after x seconds if one of the specified packets is not received before the time. 
+ * New connections will be kicked after x seconds if one of the specified packets is not received before the time.
  */
 public class StaleConnectionsCleaner {
   /**
@@ -32,7 +32,7 @@ public class StaleConnectionsCleaner {
    * This assumes that the server receives enough packets from other clients to be able to periodically update the list. <br>
    * The worst scenario of this system is when no connection sends packets, the list will never be updated. <br>
    * But normally the server automatically handle this case. By default, {@code 12 seconds} between the last read.
-   * 
+   *
    * @param server The server on which to add the listener.
    * @param timeout Time before kick if the {@link waitingPacket} is not received, in ms.
    * @param waitingPackets Packets classes to wait for.
@@ -53,13 +53,13 @@ public class StaleConnectionsCleaner {
 
       public void disconnected(Connection connection, DcReason reason) {
         if (refreshing) return; // Refresher remove faster
-        if (connecting.remove(connection) != null) 
+        if (connecting.remove(connection) != null)
           recalculateRefresh();
       }
 
       public void received(Connection connection, Object object) {
-        if (waitingc != null ? waitingc == object.getClass() : waitingl.contains(object.getClass()) && 
-            connecting.remove(connection) != null) 
+        if (waitingc != null ? waitingc == object.getClass() : waitingl.contains(object.getClass()) &&
+            connecting.remove(connection) != null)
           recalculateRefresh();
         cleanConnections();
       }
@@ -88,7 +88,7 @@ public class StaleConnectionsCleaner {
         if (!connecting.isEmpty()) {
           for (Long value : connecting.values()) {
             if (value < soonest) soonest = value;
-          }  
+          }
         }
         nextRefresh = soonest;
       }

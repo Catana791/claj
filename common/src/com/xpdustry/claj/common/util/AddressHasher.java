@@ -19,16 +19,16 @@ public class AddressHasher {
     byte[] bytes = new byte[16];
     // Use IPv6 Unique Local Address (fc00::/7), specifically fd00::/8
     bytes[0] = (byte) 0xfd;
-    
+
     // Fill the last 8 bytes with the hash
     for (int i = 0; i < 8; i++) {
       bytes[8 + i] = (byte) ((addressHash >> ((7 - i) * 8)) & 0xFF);
     }
-    
-    try { return InetAddress.getByAddress(bytes); } 
+
+    try { return InetAddress.getByAddress(bytes); }
     catch (Exception ignored) { return null; } // cannot happen
   }
-  
+
   /** Hashes the address then converts it back to an address. */
   public static InetAddress obfuscate(InetAddress address) {
     return generate(hash(address));

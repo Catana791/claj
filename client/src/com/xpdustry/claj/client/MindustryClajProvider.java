@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -47,10 +47,10 @@ public class MindustryClajProvider implements ClajProvider {
   public static final Server mindustryServer;
   public static final NetListener mindustryServerDispatcher;
   public static final PacketSerializer mindustrySerializer;
-  /** 
+  /**
    * CLaJ versions are always in format: {@code protocolType.majorVersion.minorVersion}. <br>
    * Only {@code majorVersion} is important. <br>
-   * {@code protocolType} is discarded, as it's always {@code 2} (for this project). 
+   * {@code protocolType} is discarded, as it's always {@code 2} (for this project).
    * Different CLaJ types must not be compatible with each others. <br>
    * As well as {@code minorVersion}, because it's represents changes that doesn't affect the protocol itself.
    */
@@ -70,45 +70,45 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   @Override
-  public ExecutorService getExecutor() { 
-    return Vars.mainExecutor; 
+  public ExecutorService getExecutor() {
+    return Vars.mainExecutor;
   }
 
   @Override
-  public ClajProxy newProxy() { 
-    return new MindustryClajProxy(this); 
+  public ClajProxy newProxy() {
+    return new MindustryClajProxy(this);
   }
 
   @Override
-  public ClajType getType() { 
-    return implType; 
+  public ClajType getType() {
+    return implType;
   }
 
   @Override
-  public int getVersion() { 
-    return majorVersion; 
+  public int getVersion() {
+    return majorVersion;
   }
 
   @Override
   public NetListener getConnectionListener() {
-    return mindustryServerDispatcher; 
+    return mindustryServerDispatcher;
   }
 
   @Override
-  public GameState getRoomState(ClajProxy proxy) { 
+  public GameState getRoomState(ClajProxy proxy) {
     return new GameState(
-      Vars.player.name, 
-      Vars.state.map.name(), 
-      Vars.state.wave, 
-      Core.settings.getInt("totalPlayers", Groups.player.size()), 
-      Vars.netServer.admins.getPlayerLimit(), 
-      Version.build, 
-      Version.type, 
-      MindustryGamemode.all[Vars.state.rules.mode().ordinal()], 
+      Vars.player.name,
+      Vars.state.map.name(),
+      Vars.state.wave,
+      Core.settings.getInt("totalPlayers", Groups.player.size()),
+      Vars.netServer.admins.getPlayerLimit(),
+      Version.build,
+      Version.type,
+      MindustryGamemode.all[Vars.state.rules.mode().ordinal()],
       Vars.state.rules.modeName
     );
   }
-  
+
   @Override
   public void connectClient(String host, int port, Runnable success) {
     Vars.logic.reset();
@@ -121,7 +121,7 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   @Override
-  public ConnectionPacketWrapPacket.Serializer getPacketWrapperSerializer() { 
+  public ConnectionPacketWrapPacket.Serializer getPacketWrapperSerializer() {
     return new ConnectionPacketWrapPacket.Serializer() {
       @Override
       public void read(ConnectionPacketWrapPacket packet, ByteBufferInput read) {
@@ -132,7 +132,7 @@ public class MindustryClajProvider implements ClajProvider {
       public void write(ConnectionPacketWrapPacket packet, ByteBufferOutput write) {
         mindustrySerializer.write(write.buffer, packet.object);
       }
-    }; 
+    };
   }
 
   @Override

@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -31,34 +31,34 @@ public class ClajProxyManager {
   protected int created;
   protected final ClajProxy[] proxies;
   protected final boolean[] reserved;
-  
+
   public ClajProxyManager(ClajProvider provider, int workers) {
     this.workers = workers;
     this.provider = provider;
     proxies = new ClajProxy[workers];
     reserved = new boolean[workers];
   }
-  
+
   public String getProxyName(int index) {
     return workers == 1 ? "Claj Proxy" : "Claj Proxy " + (index+1);
   }
-  
+
   public boolean hasCreatedProxies() {
     return created > 0;
   }
-  
+
   public int createdProxies() {
     return created;
   }
-  
+
   public int proxies() {
     return workers;
   }
-  
+
   public ClajProvider provider() {
     return provider;
   }
-  
+
   public ClajProxy ensureCreated(int index) {
     ClajProxy proxy = proxies[index];
     if (proxy != null) return proxy;
@@ -66,30 +66,30 @@ public class ClajProxyManager {
     created++;
     return proxy;
   }
-  
+
   public ClajProxy ensureStarted(int index) {
     ClajProxy proxy = get(index);
     // TODO: this probably fixes the issue where the room keeps closing when switching of app on android
-    if (!proxy.isRunning()) Threads./*daemon*/thread(getProxyName(index), proxy); 
+    if (!proxy.isRunning()) Threads./*daemon*/thread(getProxyName(index), proxy);
     return proxy;
   }
-  
+
   /** @return the first proxy. */
   public ClajProxy get() { return get(0); }
   public ClajProxy get(int index) {
     return ensureCreated(index);
   }
-  
+
   public ClajProxy getOrNull(int index) {
     return proxies[index];
   }
-  
+
   /** Search for a proxy with no created room. */
   public ClajProxy findFree() {
     int index = findFreeI();
     return index == -1 ? null : get(index);
   }
-  
+
   public int findFreeI() {
     if (!hasCreatedProxies()) {
       get();
@@ -114,7 +114,7 @@ public class ClajProxyManager {
     ClajProxy proxy = proxies[index];
     return proxy != null && (proxy.roomCreated() || proxy.isConnecting());
   }
-  
+
   /** Checks the first proxy. */
   public boolean isRoomCreated() { return isRoomCreated(0); }
   public boolean isRoomCreated(int index) {
@@ -122,7 +122,7 @@ public class ClajProxyManager {
     if (proxy == null) return false; // Just ignore if not created
     return proxy.roomCreated();
   }
-  
+
   /** Checks the first proxy. */
   public boolean isRoomClosed() { return isRoomClosed(0); }
   public boolean isRoomClosed(int index) {
@@ -130,7 +130,7 @@ public class ClajProxyManager {
     if (proxy == null) return true; // Just ignore if not created
     return !proxy.roomCreated();
   }
-  
+
   /** Search whether a proxy have an open room. */
   public boolean hasOpenRoom() {
     for (ClajProxy proxy : proxies) {
@@ -139,7 +139,7 @@ public class ClajProxyManager {
     }
     return false;
   }
-  
+
   /** Closes the first proxy's room. */
   public void closeRoom() { closeRoom(0); }
   public void closeRoom(int index) {
@@ -148,7 +148,7 @@ public class ClajProxyManager {
     proxy.closeRoom();
     proxy.close();
   }
-  
+
   public void closeAllRooms() {
     for (ClajProxy proxy : proxies) {
       if (proxy == null) continue;
@@ -156,23 +156,23 @@ public class ClajProxyManager {
       proxy.close();
     }
   }
-  
+
   /** Dispose all proxies. */
   public void dispose() {
     for (ClajProxy proxy : proxies) {
       if (proxy == null) continue;
       proxy.stop();
       try { proxy.dispose(); }
-      catch (Exception ignored) {}  
+      catch (Exception ignored) {}
     }
   }
-  
-  /** 
-   * This will try to find an available proxy. 
-   * @return the proxy on which the room was opened. 
+
+  /**
+   * This will try to find an available proxy.
+   * @return the proxy on which the room was opened.
    *         (does not guarantee that the room is already open or will be.)
    */
-  public ClajProxy createRoom(String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
+  public ClajProxy createRoom(String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed,
                          Cons<Throwable> failed) {
     int index = findFreeI();
     if (index == -1) {
@@ -180,11 +180,11 @@ public class ClajProxyManager {
       else failed.get(new RuntimeException("Room is already created, please close it before"));
       return null;
     }
-    
+
     return createRoom(index, host, port, created, closed, failed);
   }
-  
-  public ClajProxy createRoom(int index, String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
+
+  public ClajProxy createRoom(int index, String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed,
                          Cons<Throwable> failed) {
     if (isBusy(index)) {
       failed.get(new RuntimeException("Room is already created, please close it before"));
@@ -192,7 +192,7 @@ public class ClajProxyManager {
     }
     ClajProxy proxy = ensureStarted(index);
     reserved[index] = true;
-      
+
     Runnable task = () -> {
       proxy.connect(host, port, created, reason -> {
         if (closed != null) closed.get(reason);
@@ -202,10 +202,10 @@ public class ClajProxyManager {
         reserved[index] = false;
       });
     };
-    
+
     if (provider.getExecutor() == null) task.run();
     else provider.getExecutor().submit(task);
-    
+
     return proxy;
   }
 }

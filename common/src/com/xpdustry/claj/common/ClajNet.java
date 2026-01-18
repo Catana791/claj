@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -34,7 +34,7 @@ public class ClajNet {
   public static final byte oldId = -3;
   /** Identifier for CLaJ packets. */
   public static final byte id = -4;
-  
+
   protected static final ArrayMap<Class<?>, Prov<? extends Packet>> packets = new ArrayMap<>();
   protected static final ObjectIntMap<Class<?>> packetToId = new ObjectIntMap<>();
 
@@ -56,5 +56,5 @@ public class ClajNet {
   public static <T extends Packet> T newPacket(byte id) {
     if (id < 0 || id >= packets.size) throw new ArcNetException("Unknown packet id: " + id);
     return ((Prov<T>)packets.getValueAt(id)).get();
-  } 
+  }
 }

@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -27,7 +27,7 @@ import com.xpdustry.claj.common.status.MindustryGamemode;
 import com.xpdustry.claj.common.util.Strings;
 
 
-/** {@link GameState}'s {@link String} fields will be truncated 
+/** {@link GameState}'s {@link String} fields will be truncated
  *  according to {@link mindustry.net.NetworkIO#writeServerData()}. */
 public class RoomInfoPacket extends RoomLinkPacket {
   /** {@code null} if the room is private or no state was received from the host. */
@@ -38,8 +38,8 @@ public class RoomInfoPacket extends RoomLinkPacket {
     roomId = read.readLong();
     if (read.readBoolean()) return;
     state = readState(read);
-  }  
- 
+  }
+
   @Override
   public void write(ByteBufferOutput write) {
     //write.writeLong(roomId);
@@ -47,7 +47,7 @@ public class RoomInfoPacket extends RoomLinkPacket {
     if (state == null) return;
     writeState(write, state);
   }
-  
+
   public static GameState readState(ByteBufferInput read) {
     return new GameState(
       //roomId,
@@ -62,7 +62,7 @@ public class RoomInfoPacket extends RoomLinkPacket {
       readUTFNullable(read, 50)
     );
   }
-  
+
   public static void writeState(ByteBufferOutput write, GameState state) {
     Strings.writeUTF(write, Strings.truncate(state.name(), 40/*Vars.maxNameLength*/));
     Strings.writeUTF(write, Strings.truncate(state.mapname(), 64));
@@ -74,12 +74,12 @@ public class RoomInfoPacket extends RoomLinkPacket {
     write.writeByte((byte)state.mode().ordinal());
     writeUTFNullable(write, state.modeName(), 50);
   }
-  
+
   private static String readUTFNullable(ByteBufferInput read, int maxlen) {
     String str = Strings.readUTF(read);
     return str.isEmpty() ? null : Strings.truncate(str, maxlen);
   }
-  
+
   private static void writeUTFNullable(ByteBufferOutput write, String str, int maxlen) {
     Strings.writeUTF(write, str == null ? "" : Strings.truncate(str, maxlen));
   }

@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -49,14 +49,14 @@ public class StreamBuilder {
     stream = compressed ? new InflaterOutputStream(back) : back;
   }
 
-  public float progress() { 
-    return (float)back.size() / total; 
+  public float progress() {
+    return (float)back.size() / total;
   }
 
-  public boolean isDone() { 
-    return back.size() >= total; 
+  public boolean isDone() {
+    return back.size() >= total;
   }
-  
+
   public void add(byte[] bytes) {
     try { stream.write(bytes); }
     catch (IOException e) { throw new RuntimeException(e); }

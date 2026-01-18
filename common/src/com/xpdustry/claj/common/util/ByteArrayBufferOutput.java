@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -28,15 +28,15 @@ import arc.util.io.FastDeflaterOutputStream;
 import arc.util.io.ReusableByteOutStream;
 
 
-/** 
- * Writes data into a {@link ByteArrayOutputStream}, 
+/**
+ * Writes data into a {@link ByteArrayOutputStream},
  * optionally compressible and maintains a {@link ByteBuffer} to the data.
   */
 public class ByteArrayBufferOutput extends ByteBufferOutput {
   public final ReusableByteOutStream back;
   public final DataOutputStream stream;
   public final boolean compressed;
-  
+
   public ByteArrayBufferOutput() { this(512, false); }
   public ByteArrayBufferOutput(int initialCapacity) { this(initialCapacity, false); }
   public ByteArrayBufferOutput(int initialCapacity, boolean compress) {
@@ -146,7 +146,7 @@ public class ByteArrayBufferOutput extends ByteBufferOutput {
   }
 
   protected void updateBuffer() {
-    if (back.getBytes() != buffer.array()) 
+    if (back.getBytes() != buffer.array())
       buffer = ByteBuffer.wrap(back.getBytes());
     buffer.position(back.size());
   }

@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -30,8 +30,8 @@ import com.xpdustry.claj.common.packets.Packet;
 import com.xpdustry.claj.common.util.ByteArrayBufferOutput;
 
 
-/** 
- * {@link mindustry.net.ArcNetProvider.ArcConnection#sendStream(mindustry.net.Streamable)}. 
+/**
+ * {@link mindustry.net.ArcNetProvider.ArcConnection#sendStream(mindustry.net.Streamable)}.
  * <p>
  * Note: {@link StreamHead} and {@link StreamChunk} must be registered in {@link ClajNet}.
  */
@@ -43,7 +43,7 @@ public class StreamSender extends InputStreamSender {
   public final boolean compressed;
   int id;
 
-  public StreamSender(Connection connection, InputStream stream, byte type, int length, 
+  public StreamSender(Connection connection, InputStream stream, byte type, int length,
                       int chunkSize, boolean compressed) {
     super(stream, chunkSize);
     this.connection = connection;
@@ -51,7 +51,7 @@ public class StreamSender extends InputStreamSender {
     this.type = type;
     this.length = length;
     this.compressed = compressed;
-    
+
     connection.addListener(this);
   }
 
@@ -71,9 +71,9 @@ public class StreamSender extends InputStreamSender {
     chunk.id = id;
     chunk.data = bytes;
     return chunk;
-  } 
-  
-  
+  }
+
+
   public static StreamSender send(Connection connection, Packet packet) {
     return send(connection, packet, 4096);
   }
@@ -82,7 +82,7 @@ public class StreamSender extends InputStreamSender {
   public static StreamSender send(Connection connection, Packet packet, int chunkSize) {
     byte id = ClajNet.getId(packet); // will check if the packet is registered
     ByteArrayBufferOutput buff = new ByteArrayBufferOutput(chunkSize / 2, true);
-    
+
     packet.write(buff);
     int size = buff.back.size();
 

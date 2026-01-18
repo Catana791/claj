@@ -56,7 +56,7 @@ public class CreateRoomDialog extends BaseDialog {
     Events.run(EventType.HostEvent.class, this::closeRoom);
 
     cont.defaults().width(Vars.mobile ? 480f : 800f);
-    
+
     makeButtonOverlay();
     addCloseButton();
     buttons.button("@claj.manage.create", Icon.add, this::createRoom)
@@ -81,7 +81,7 @@ public class CreateRoomDialog extends BaseDialog {
           table.button(Icon.settings, () -> ClajUi.settings.show()).right().padLeft(10).growY()
                .tooltip("@claj.settings.title");  
         }).padBottom(24).growX().row();
-        
+
         // Custom servers
         section("@claj.manage.custom-servers", custom, hosts, () -> ClajUi.add.show((n, h) -> {
           ClajServers.custom.put(n, h);
@@ -92,7 +92,7 @@ public class CreateRoomDialog extends BaseDialog {
         // Public servers
         section("@claj.manage.public-servers", online, hosts, null, this::refreshOnline);
       }).padRight(5).grow();
-      
+
       // Give extra space for buttons
       inner.marginBottom(Vars.mobile ? 140f : 70f); 
     }).with(s -> {

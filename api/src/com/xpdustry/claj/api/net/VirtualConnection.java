@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025-2026  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -31,7 +31,7 @@ import com.xpdustry.claj.common.net.DispatchListener;
 import com.xpdustry.claj.common.util.AddressHasher;
 
 
-/** 
+/**
  * A connection that doesn't have a socket and buffer behind. <br>
  * Every writes is done to the proxy, and listeners are triggered by him. <br>
  * And some internal {@link Connection} states are exposed for more control.
@@ -40,20 +40,20 @@ import com.xpdustry.claj.common.util.AddressHasher;
  * as some internal states like listeners cannot be fully overridden.
  */
 public class VirtualConnection extends Connection {
-  /** The real client, aka the proxy. */ 
+  /** The real client, aka the proxy. */
   public final ProxyClient proxy;
-  
+
   protected final int id;
   protected final DispatchListener dispatcher = new DispatchListener(true);
-  /** 
+  /**
    * Fake address calculated using the hash of the real client address provided by the server. <br>
    * TCP and UDP ports are always the same, so no need to have two InetSocketAddress.
    */
   protected final InetSocketAddress remoteAddress;
   protected String name;
 
-  /** 
-   * A virtual connection is always connected until we closing it, 
+  /**
+   * A virtual connection is always connected until we closing it,
    * so the proxy will notify the server to close the connection in turn,
    * or when the server notifies that the connection has been closed.
    * <p>
@@ -68,14 +68,14 @@ public class VirtualConnection extends Connection {
     this.id = id;
     this.remoteAddress = new InetSocketAddress(AddressHasher.generate(addressHash), proxy.connectTcpPort);
   }
-  
+
   @Override
   public int sendTCP(Object object) { return proxy.send(this, object, true); }
   @Override
   public int sendUDP(Object object) { return proxy.send(this, object, false); }
   @Override
   public void close(DcReason reason) { proxy.close(this, reason); }
-  /** 
+  /**
    * Close the connection without notify the server about that. <br>
    * Common use is when the server itself is saying to close the connection.
    */
@@ -88,12 +88,12 @@ public class VirtualConnection extends Connection {
   /** Only used when sending world data */
   @Override
   public void removeListener(NetListener listener) { dispatcher.removeListener(listener); }
-  
+
   public void notifyConnected0() { dispatcher.connected(this); }
   public void notifyDisconnected0(DcReason reason) { dispatcher.disconnected(this, reason); }
   public void notifyIdle0() { dispatcher.idle(this); }
   public void notifyReceived0(Object object) { dispatcher.received(this, object); }
-  
+
   public void setIdle() { isIdling = true; }
   public void setConnected0(boolean isConnected) {
     this.isConnected = isConnected;
@@ -116,8 +116,8 @@ public class VirtualConnection extends Connection {
   public void setTimeout(int timeoutMillis) {} // never used
   @Override
   public EndPoint getEndPoint() { return proxy.getEndPoint(); } // never used
-  @Override 
-  public InetSocketAddress getRemoteAddressTCP() { return isConnected() ? remoteAddress : null; } 
+  @Override
+  public InetSocketAddress getRemoteAddressTCP() { return isConnected() ? remoteAddress : null; }
   @Override
   public InetSocketAddress getRemoteAddressUDP() { return isConnected() ? remoteAddress : null;  }
   @Override
