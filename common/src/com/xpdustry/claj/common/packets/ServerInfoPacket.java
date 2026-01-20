@@ -31,7 +31,7 @@ public class ServerInfoPacket extends DelayedPacket {
     // By default, arc server is configured to reply an empty buffer.
     // This can be used to determine whether this is an old CLaJ server or not.
     // Because on older versions, no discovery was configured.
-    version = read.buffer.hasRemaining() ? read.readInt() : 0;
+    version = read.buffer.hasRemaining() ? read.readInt() : -1;
   }
 
   @Override

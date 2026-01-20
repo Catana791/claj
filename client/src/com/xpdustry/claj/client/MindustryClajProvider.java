@@ -102,8 +102,8 @@ public class MindustryClajProvider implements ClajProvider {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Host readRoomState(long roomId, ByteBuffer buff) {
-    return NetworkIO.readServerData(0, "<unknown>", buff);
+  public Host readRoomState(long roomId, ClajType type, ByteBuffer buff) {
+    return getType().equals(type) ? NetworkIO.readServerData(0, "<unknown>", buff) : null;
   }
 
   @Override

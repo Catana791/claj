@@ -65,7 +65,7 @@ public interface ClajProvider {
    */
   default ByteBuffer writeRoomState(ClajProxy proxy) { return ByteBuffer.allocate(0); }
   /** Decode the room state received by the server. */
-  default <T> T readRoomState(long roomId, ByteBuffer buff) {
+  default <T> T readRoomState(long roomId, ClajType type, ByteBuffer buff) {
     buff.position(buff.limit()); // fake reading
     return null;
   }

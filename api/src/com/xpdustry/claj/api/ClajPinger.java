@@ -94,7 +94,7 @@ public class ClajPinger extends Client {
     });
     receiver.handle(RoomInfoPacket.class, p -> {
       if (p.roomId == requestedRoom)
-        runInfoSuccess(p.roomId, p.isProtected, p.state);
+        runInfoSuccess(p.roomId, p.isProtected, p.type, p.state);
     });
     receiver.handle(RoomInfoDeniedPacket.class, this::runInfoNotFound);
 
@@ -182,11 +182,11 @@ public class ClajPinger extends Client {
     pinging = false;
   }
 
-  protected void runPingSuccess(int majorVersion) {
+  protected void runPingSuccess(int version) {
     pingReceived = true;
     if (pingSuccess != null) {
       int ping = (int)(System.currentTimeMillis() - time);
-      postTask(pingSuccess, new ServerState(connectHost, connectPort, majorVersion, ping));
+      postTask(pingSuccess, new ServerState(connectHost, connectPort, version, ping));
     }
     resetPingState(null, null);
     close();
@@ -211,8 +211,11 @@ public class ClajPinger extends Client {
     Seq<ClajRoom<?>> roomList = new Seq<>(size);
     for (int i=0; i<size; i++) {
       if (rooms[i] == ClajProxy.UNCREATED_ROOM) continue; // ignore invalid rooms
-      roomList.add(new ClajRoom<>(rooms[i], true, isProtected[i], provider.readRoomState(rooms[i], states[i]),
-                                new ClajLink(connectHost, connectPort, rooms[i])));
+      roomList.add(new ClajRoom<>(
+        rooms[i], true, isProtected[i], 
+        provider.readRoomState(rooms[i], provider.getType(), states[i]),
+        new ClajLink(connectHost, connectPort, rooms[i])
+      ));
     }
 
     postTask(listInfo, roomList);
@@ -261,10 +264,13 @@ public class ClajPinger extends Client {
     infoing = false;
   }
 
-  protected void runInfoSuccess(long roomId, boolean isProtected, ByteBuffer state) {
+  protected void runInfoSuccess(long roomId, boolean isProtected, ClajType type, ByteBuffer state) {
     if (infoSuccess != null) {
-      ClajRoom<?> room = new ClajRoom<>(roomId, true, isProtected, provider.readRoomState(roomId, state),
-                                      new ClajLink(connectHost, connectPort, roomId));
+      ClajRoom<?> room = new ClajRoom<>(
+        roomId, true, isProtected, 
+        provider.readRoomState(roomId, type, state),
+        new ClajLink(connectHost, connectPort, roomId)
+      );
       postTask(infoSuccess, room);
     }
     resetInfoState(null, null, null);

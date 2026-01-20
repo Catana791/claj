@@ -24,15 +24,19 @@ import java.nio.ByteBuffer;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
+import com.xpdustry.claj.common.status.ClajType;
+
 
 public class RoomInfoPacket extends RoomLinkPacket {
   public boolean isProtected;
+  public ClajType type;
   public ByteBuffer state;
 
   @Override
   protected void readImpl(ByteBufferInput read) {
     roomId = read.readLong();
     isProtected = read.readBoolean();
+    type = ClajType.read(read.buffer);
     byte[] data = new byte[read.buffer.remaining()];
     read.readFully(data);
     state = ByteBuffer.wrap(data);
@@ -42,6 +46,7 @@ public class RoomInfoPacket extends RoomLinkPacket {
   public void write(ByteBufferOutput write) {
     write.writeLong(roomId);
     write.writeBoolean(isProtected);
+    type.write(write.buffer);
     write.buffer.put(state);
   }
 }
