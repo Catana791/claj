@@ -20,17 +20,22 @@
 package com.xpdustry.claj.common.packets;
 
 import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 
 
-//TODO: not reliable, must be a packet sent/received another way than standard one.
-public class ServerInfoPacket extends RoomCreationRequestPacket {
+public class ServerInfoPacket extends DelayedPacket {
+  public int version = -1;
+
   @Override
   protected void readImpl(ByteBufferInput read) {
     // By default, arc server is configured to reply an empty buffer.
     // This can be used to determine whether this is an old CLaJ server or not.
     // Because on older versions, no discovery was configured.
-    // Note: since an empty buffer can be received, this packet is also hard-coded into the api serializer.
-    if (!read.buffer.hasRemaining()) version = 0;
-    else super.readImpl(read);
+    version = read.buffer.hasRemaining() ? read.readInt() : 0;
+  }
+
+  @Override
+  public void write(ByteBufferOutput write) {
+    write.writeInt(version);
   }
 }

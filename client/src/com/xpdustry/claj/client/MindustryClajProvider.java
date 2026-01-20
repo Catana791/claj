@@ -19,6 +19,7 @@
 
 package com.xpdustry.claj.client;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 
 import arc.Core;
@@ -30,11 +31,11 @@ import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
 import mindustry.Vars;
-import mindustry.core.Version;
 import mindustry.gen.Call;
-import mindustry.gen.Groups;
 import mindustry.net.ArcNetProvider.PacketSerializer;
+import mindustry.net.Host;
 import mindustry.net.Net.NetProvider;
+import mindustry.net.NetworkIO;
 
 import com.xpdustry.claj.api.ClajProvider;
 import com.xpdustry.claj.api.ClajProxy;
@@ -95,18 +96,14 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   @Override
-  public GameState getRoomState(ClajProxy proxy) {
-    return new GameState(
-      Vars.player.name,
-      Vars.state.map.name(),
-      Vars.state.wave,
-      Core.settings.getInt("totalPlayers", Groups.player.size()),
-      Vars.netServer.admins.getPlayerLimit(),
-      Version.build,
-      Version.type,
-      MindustryGamemode.all[Vars.state.rules.mode().ordinal()],
-      Vars.state.rules.modeName
-    );
+  public ByteBuffer writeRoomState(ClajProxy proxy) {
+    return NetworkIO.writeServerData();
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public Host readRoomState(long roomId, ByteBuffer buff) {
+    return NetworkIO.readServerData(0, "<unknown>", buff);
   }
 
   @Override

@@ -19,68 +19,29 @@
 
 package com.xpdustry.claj.common.packets;
 
+import java.nio.ByteBuffer;
+
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
-import com.xpdustry.claj.common.status.GameState;
-import com.xpdustry.claj.common.status.MindustryGamemode;
-import com.xpdustry.claj.common.util.Strings;
 
-
-/** {@link GameState}'s {@link String} fields will be truncated
- *  according to {@link mindustry.net.NetworkIO#writeServerData()}. */
 public class RoomInfoPacket extends RoomLinkPacket {
-  /** {@code null} if the room is private or no state was received from the host. */
-  public GameState state;
+  public boolean isProtected;
+  public ByteBuffer state;
 
   @Override
   protected void readImpl(ByteBufferInput read) {
     roomId = read.readLong();
-    if (read.readBoolean()) return;
-    state = readState(read);
+    isProtected = read.readBoolean();
+    byte[] data = new byte[read.buffer.remaining()];
+    read.readFully(data);
+    state = ByteBuffer.wrap(data);
   }
 
   @Override
   public void write(ByteBufferOutput write) {
-    //write.writeLong(roomId);
-    write.writeBoolean(state == null);
-    if (state == null) return;
-    writeState(write, state);
-  }
-
-  public static GameState readState(ByteBufferInput read) {
-    return new GameState(
-      //roomId,
-      Strings.truncate(Strings.readUTF(read), 40/*Vars.maxNameLength*/),
-      Strings.truncate(Strings.readUTF(read), 64),
-      read.readInt(),
-      read.readInt(),
-      read.readInt(),
-      read.readInt(),
-      Strings.truncate(Strings.readUTF(read), 32),
-      MindustryGamemode.all[read.readByte()],
-      readUTFNullable(read, 50)
-    );
-  }
-
-  public static void writeState(ByteBufferOutput write, GameState state) {
-    Strings.writeUTF(write, Strings.truncate(state.name(), 40/*Vars.maxNameLength*/));
-    Strings.writeUTF(write, Strings.truncate(state.mapname(), 64));
-    write.writeInt(state.wave());
-    write.writeInt(state.players());
-    write.writeInt(state.playerLimit());
-    write.writeInt(state.version());
-    Strings.writeUTF(write, Strings.truncate(state.versionType(), 32));
-    write.writeByte((byte)state.mode().ordinal());
-    writeUTFNullable(write, state.modeName(), 50);
-  }
-
-  private static String readUTFNullable(ByteBufferInput read, int maxlen) {
-    String str = Strings.readUTF(read);
-    return str.isEmpty() ? null : Strings.truncate(str, maxlen);
-  }
-
-  private static void writeUTFNullable(ByteBufferOutput write, String str, int maxlen) {
-    Strings.writeUTF(write, str == null ? "" : Strings.truncate(str, maxlen));
+    write.writeLong(roomId);
+    write.writeBoolean(isProtected);
+    write.buffer.put(state);
   }
 }

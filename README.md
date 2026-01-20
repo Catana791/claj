@@ -91,7 +91,7 @@ The project is designed to be modular, and is divided into several modules:
 * ``client``: The Mindustry CLaJ implementation, also providing UI to manages CLaJ.
 * ``server``: The relay server, managing packet redirection between room host and clients.
 
-To integrate CLaJ into another game or application, the only requirements is to implement the `ClajProvider` interface, and call methods from the `Claj` class.
+To integrate CLaJ into another game or application, the only requirements is to implement the [``ClajProvider``](https://github.com/xpdustry/claj/blob/main/api/src/com/xpdustry/claj/api/ClajProvider.java) interface, and call methods from the [``Claj``](https://github.com/xpdustry/claj/blob/main/api/src/com/xpdustry/claj/api/Claj.java) class.
 
 CLaJ uses the [Arc framework](https://github.com/Anuken/Arc/) for its optimized utilities, but it's also a very versatile framework (containing graphics, audio and keyboard input management, etc). <br>
 So to avoid including the entire framework, you can use [arc-lite](https://github.com/xpdustry/arc-lite) (which is a lightweight version that removes all client-related elements) with the [gradle shadow plugin](https://github.com/GradleUp/shadow), to remove anything not used by your project.

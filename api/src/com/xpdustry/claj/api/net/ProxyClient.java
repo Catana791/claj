@@ -56,11 +56,10 @@ public abstract class ProxyClient extends Client {
   protected volatile boolean shutdown = true, ignoreExceptions, connecting;
   protected ClientReceiver receiver;
 
-  public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization,
-                     NetListener conListener) {
+  public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization, NetListener conListener) {
     super(writeBufferSize, objectBufferSize, serialization);
     this.conListener = conListener;
-    receiver = new ClientReceiver(this);
+    this.receiver = new ClientReceiver(this);
   }
 
   /**
@@ -100,13 +99,12 @@ public abstract class ProxyClient extends Client {
       } catch (IOException ex) {
         close();
       } catch (ArcNetException ex) {
-        if (ignoreExceptions) Log.err("Ignored Exception", ex);
-        else {
+        if (!ignoreExceptions) {
           // Reflection is needed because the field is package-protected
           Reflect.set(Connection.class, this, "lastProtocolError", ex);
           close();
           throw ex;
-        }
+        } else Log.err("Ignored Exception", ex);
       }
     }
   }

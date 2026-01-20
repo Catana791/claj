@@ -109,7 +109,7 @@ public class Claj {
     pingers.pingHost(host, port, success, failed);
   }
   
-  public void serverRooms(String host, int port, Cons<Seq<ClajRoom>> rooms, Cons<Exception> failed) {
+  public <T> void serverRooms(String host, int port, Cons<Seq<ClajRoom<T>>> rooms, Cons<Exception> failed) {
     pingers.serverRooms(host, port, rooms, failed);
   }
 }

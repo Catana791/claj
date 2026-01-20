@@ -19,6 +19,7 @@
 
 package com.xpdustry.claj.api;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 
 import arc.net.NetListener;
@@ -57,15 +58,25 @@ public interface ClajProvider {
   default NetListener getConnectionListener() { return null; }
 
   /**
-   * The actual room state. Will be requested by the server if needed. <br>
-   * Can be {@code null} to not provide state.
+   * The actual room state, in an encoded form. <br>
+   * Will be requested by the server if needed. An empty buffer can be returned to not provide state.
+   * <p>
+   * <strong>The buffer size must be less than {@code 2^16} ({@code 65536}). </strong>
    */
-  default GameState getRoomState(ClajProxy proxy) { return null; }
+  default ByteBuffer writeRoomState(ClajProxy proxy) { return ByteBuffer.allocate(0); }
+  /** Decode the room state received by the server. */
+  default <T> T readRoomState(long roomId, ByteBuffer buff) {
+    buff.position(buff.limit()); // fake reading
+    return null;
+  }
+
   /**
    * Connect the client to the specified server. <br>
    * {@code success} can be null and must be called if connected successfully.
    */
-  default void connectClient(String host, int port, Runnable success) { if (success != null) success.run(); }
+  default void connectClient(String host, int port, Runnable success) {
+    if (success != null) success.run();
+  }
 
   /**
    * <strong>Essential for the protocol to work!</strong>

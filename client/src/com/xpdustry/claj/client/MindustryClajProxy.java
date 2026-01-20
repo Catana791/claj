@@ -19,10 +19,14 @@
 
 package com.xpdustry.claj.client;
 
+import arc.Core;
 import arc.func.Cons;
 import arc.util.Ratekeeper;
 
+import mindustry.Vars;
+import mindustry.net.Host;
 import mindustry.net.NetConnection;
+import mindustry.net.NetworkIO;
 import mindustry.net.Packets.KickReason;
 
 import com.xpdustry.claj.api.ClajProvider;
@@ -72,5 +76,12 @@ public class MindustryClajProxy extends ClajProxy {
     // Kick players before
     kickAllConnections(KickReason.serverClose);
     super.closeRoom();
+  }
+
+  public Host getState() {
+    // Not very efficient
+    Host host = NetworkIO.readServerData(0, "localhost", NetworkIO.writeServerData());
+    host.port = Core.settings.getInt("port", Vars.port);
+    return host;
   }
 }

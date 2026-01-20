@@ -28,62 +28,65 @@ import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
 import com.xpdustry.claj.common.ClajNet;
-import com.xpdustry.claj.common.ClajPackets.RawPacket;
 import com.xpdustry.claj.common.net.FrameworkSerializer;
 import com.xpdustry.claj.common.packets.Packet;
-import com.xpdustry.claj.common.packets.ServerInfoPacket;
 
 
 public class ClajSerializer implements NetSerializer, FrameworkSerializer {
-    //maybe faster without ThreadLocal?
-    protected final ByteBufferInput read = new ByteBufferInput();
-    protected final ByteBufferOutput write = new ByteBufferOutput();
+  //maybe faster without ThreadLocal?
+  protected final ByteBufferInput read = new ByteBufferInput();
+  protected final ByteBufferOutput write = new ByteBufferOutput();
 
-    @Override
-    public Object read(ByteBuffer buffer) {
-      // HAAA whyyy
-      if (!buffer.hasRemaining()) {
+  @Override
+  public Object read(ByteBuffer buffer) {
+    switch (buffer.get()) {
+      case ClajNet.frameworkId:
+        return readFramework(buffer);
+
+      case ClajNet.oldId:
+        throw new ArcNetException("Received a packet from the old CLaJ protocol");
+
+      case ClajNet.id:
         read.buffer = buffer;
-        // Probably a CLaJ discovery reply from an old server...
-        return new ServerInfoPacket().r(read);
-      }
+        Packet packet = ClajNet.newPacket(buffer.get());
+        packet.read(read);
+        return packet;
 
-      switch (buffer.get()) {
-        case ClajNet.frameworkId:
-          return readFramework(buffer);
-
-        case ClajNet.oldId:
-          throw new ArcNetException("Received a packet from the old CLaJ protocol");
-
-        case ClajNet.id:
-          read.buffer = buffer;
-          Packet packet = ClajNet.newPacket(buffer.get());
-          packet.read(read);
-          return packet;
-
-        default:
-          buffer.position(buffer.position()-1);
-          throw new ArcNetException("Unknown protocol type: " + buffer.get());
-      }
-    }
-
-    @Override
-    public void write(ByteBuffer buffer, Object object) {
-      if (object instanceof ByteBuffer buf) {
-        buffer.put(buf);
-
-      } else if (object instanceof FrameworkMessage framework) {
-        buffer.put(ClajNet.frameworkId);
-        writeFramework(buffer, framework);
-
-      } else if (object instanceof Packet packet) {
-        write.buffer = buffer;
-        if (!(object instanceof RawPacket))
-          buffer.put(ClajNet.id).put(ClajNet.getId(packet));
-        packet.write(write);
-
-      } else {
-        throw new ArcNetException("Unknown packet type: " + object.getClass());
-      }
+      default:
+        buffer.position(buffer.position()-1);
+        throw new ArcNetException("Unknown protocol type: " + buffer.get());
     }
   }
+
+  @Override
+  public void write(ByteBuffer buffer, Object object) {
+    if (object instanceof ByteBuffer buf) {
+      buffer.put(buf);
+
+    } else if (object instanceof FrameworkMessage framework) {
+      buffer.put(ClajNet.frameworkId);
+      writeFramework(buffer, framework);
+
+    } else if (object instanceof Packet packet) {
+      write.buffer = buffer;
+      buffer.put(ClajNet.id).put(ClajNet.getId(packet));
+      packet.write(write);
+
+    } else {
+      throw new ArcNetException("Unknown packet type: " + object.getClass());
+    }
+  }
+
+  /*
+  // Default methods sends a signed short instead of an unsigned one...
+  @Override
+  public void writeLength(ByteBuffer buffer, int length) {
+    buffer.putChar((char)length); // char is encoded as an unsigned short
+  }
+
+  @Override
+  public int readLength(ByteBuffer buffer) {
+    return buffer.getChar();
+  }
+  */
+}

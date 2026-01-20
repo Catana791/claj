@@ -44,6 +44,7 @@ import mindustry.game.EventType;
 import mindustry.gen.Icon;
 import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
+import mindustry.net.Host;
 import mindustry.ui.MobileButton;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
@@ -55,7 +56,6 @@ import com.xpdustry.claj.api.ClajRoom;
 import com.xpdustry.claj.client.ClajServers;
 import com.xpdustry.claj.client.ClajUi;
 import com.xpdustry.claj.client.dialogs.CreateRoomDialog.Server;
-import com.xpdustry.claj.common.status.GameState;
 
 
 public class BrowserDialog extends BaseDialog {
@@ -68,7 +68,7 @@ public class BrowserDialog extends BaseDialog {
   final Table hosts = new Table();
 
   final ObjectSet<Server> refreshing = new ObjectSet<>();
-  final ObjectMap<Server, Seq<ClajRoom>> serverRooms = new ObjectMap<>();
+  final ObjectMap<Server, Seq<ClajRoom<Host>>> serverRooms = new ObjectMap<>();
   final ObjectMap<Server, Table> servers = new ObjectMap<>();
 
   //final BrowserDialogTest test = new BrowserDialogTest();
@@ -219,8 +219,8 @@ public class BrowserDialog extends BaseDialog {
       label.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(5, 3, 5, 0).color(Pal.accent);
 
       Claj.get().pingHost/*test.mockPingHost*/(server.address, server.port, s -> {
-        server.compatible = s.majorVersion() == Claj.get().provider.getVersion();
-        server.outdated = s.majorVersion() < Claj.get().provider.getVersion();
+        server.compatible = s.version == Claj.get().provider.getVersion();
+        server.outdated = s.version < Claj.get().provider.getVersion();
         if (server.compatible) {
           ping.image(Icon.ok, Color.green).padRight(7).left();
         } else {
@@ -230,7 +230,7 @@ public class BrowserDialog extends BaseDialog {
           label.add("@claj.browser.incompatible");
         }
         if (Vars.mobile) ping.row();
-        ping.add(s.ping() + "ms", Color.lightGray, 0.91f).left();
+        ping.add(s.ping + "ms", Color.lightGray, 0.91f).left();
         if (server.compatible) listRooms(server, dest, done, error);
       }, e -> {
         ping.clear();
@@ -244,7 +244,7 @@ public class BrowserDialog extends BaseDialog {
 
   public void listRooms(Server server, Table dest, Runnable done, Cons<Exception> error) {
     int columns = columns();
-    Claj.get().serverRooms/*test.mockServerRooms*/(server.address, server.port, r -> {
+    Claj.get().<Host>serverRooms/*test.mockServerRooms*/(server.address, server.port, r -> {
       serverRooms.put(server, r);
       dest.clear();
       if (r.isEmpty()) {
@@ -268,26 +268,26 @@ public class BrowserDialog extends BaseDialog {
     });
   }
 
-  public boolean isHidden(GameState state) {
+  public boolean isHidden(Host host) {
     if (serverSearch.isEmpty()) return false;
-    return state == null
-        || !Strings.stripColors(state.name()).toLowerCase().contains(serverSearch)
-        && !Strings.stripColors(state.mapname()).toLowerCase().contains(serverSearch)
-        && !(state.modeName() != null && Strings.stripColors(state.modeName()).toLowerCase().contains(serverSearch))
-        && !(state.mode() != null && state.mode().name().toLowerCase().contains(serverSearch));
+    return host == null
+        || !Strings.stripColors(host.name).toLowerCase().contains(serverSearch)
+        && !Strings.stripColors(host.mapname).toLowerCase().contains(serverSearch)
+        && !(host.modeName != null && Strings.stripColors(host.modeName).toLowerCase().contains(serverSearch))
+        && !(host.mode != null && host.mode.name().toLowerCase().contains(serverSearch));
   }
 
-  public void addRoom(Table dest, ClajRoom room) {
-    GameState state = room.state;
+  public void addRoom(Table dest, ClajRoom<Host> room) {
+    Host host = room.state;
     float w = targetWidth(), tw = w - 20f;
-    String versionString = getVersionString(state);
+    String versionString = getVersionString(host);
 
     dest.button(inner -> {
       inner.table(Tex.whiteui, title -> {
         title.setColor(Pal.gray);
-        if (state == null) title.add("...", Pal.accent).padLeft(10).padTop(5).growX().left();
+        if (host == null) title.add("...", Pal.accent).padLeft(10).padTop(5).growX().left();
         else {
-          title.add(state.name(), Styles.outlineLabel).padLeft(10).width(tw).growX().left().ellipsis(true)
+          title.add(host.name, Styles.outlineLabel).padLeft(10).width(tw).growX().left().ellipsis(true)
                .self(c -> c.padTop(versionString.isEmpty() ? 5 : 3));
           if (!versionString.isEmpty())
             title.row().add(versionString, Styles.outlineLabel).padLeft(10).width(tw).growX().left().ellipsis(true);
@@ -296,7 +296,7 @@ public class BrowserDialog extends BaseDialog {
 
       inner.stack(new Table(Tex.whitePane, desc -> {
         desc.setColor(Pal.gray);
-        if (state == null) {
+        if (host == null) {
           desc.add("").left().row();
           desc.add("@claj.browser.no-room-data").center().row();
           desc.add("").padBottom(10).left().row();
@@ -304,16 +304,16 @@ public class BrowserDialog extends BaseDialog {
         }
         desc.top().left();
         desc.add("[lightgray]" + (Core.bundle.format(
-          "players" + (state.players() == 1 && state.playerLimit() <= 0 ? ".single" : ""),
-            (state.players() == 0 ? "[lightgray]" : "[accent]") + state.players() +
-            (state.playerLimit() > 0 ? "[lightgray]/[accent]" + state.playerLimit() : "") + "[lightgray]")
+          "players" + (host.players == 1 && host.playerLimit <= 0 ? ".single" : ""),
+            (host.players == 0 ? "[lightgray]" : "[accent]") + host.players +
+            (host.playerLimit > 0 ? "[lightgray]/[accent]" + host.playerLimit : "") + "[lightgray]")
         )).left().ellipsis(true).row();
         desc.add("[lightgray]" +
-                 Core.bundle.format("save.map", "[accent]" + state.mapname()) +
+                 Core.bundle.format("save.map", "[accent]" + host.mapname) +
                  "[lightgray] / [accent]" +
-                 (state.modeName() == null ? state.mode().toString() : state.modeName())
+                 (host.modeName == null ? host.mode.toString() : host.modeName)
         ).width(tw - 10).left().ellipsis(true).row();
-        desc.add("[lightgray]" + Core.bundle.format("save.wave", "[accent]" + state.wave())).left()
+        desc.add("[lightgray]" + Core.bundle.format("save.wave", "[accent]" + host.wave)).left()
             .ellipsis(true).padBottom(10).row();
 
       }), new Table(t -> {
@@ -367,7 +367,7 @@ public class BrowserDialog extends BaseDialog {
       Server server = e.key;
       Table table = e.value;
 
-      Seq<ClajRoom> rooms = serverRooms.get(server);
+      Seq<ClajRoom<Host>> rooms = serverRooms.get(server);
       if (rooms == null) continue;
 
       table.clear();
@@ -419,22 +419,22 @@ public class BrowserDialog extends BaseDialog {
     cont.row();
   }
 
-  /** {@link mindustry.ui.dialogs.JoinDialog#getVersionString}. */
-  public String getVersionString(GameState host) {
+  /** {@link mindustry.ui.dialogs.JoinDialog#getVersionString} without the new line. */
+  public String getVersionString(Host host) {
     if (host == null) {
       return "";
-    } else if (host.version() == -1) {
+    } else if (host.version == -1) {
       return Core.bundle.format("server.version", Core.bundle.get("server.custombuild"), "");
-    } else if (host.version() == 0) {
+    } else if (host.version == 0) {
       return Core.bundle.get("server.outdated");
-    } else if (host.version() < Version.build && Version.build != -1) {
-      return Core.bundle.get("server.outdated") + "   " + Core.bundle.format("server.version", host.version(), "");
-    } else if (host.version() > Version.build && Version.build != -1) {
-      return Core.bundle.get("server.outdated.client") + "   " + Core.bundle.format("server.version", host.version(), "");
-    } else if (host.version() == Version.build && Version.type.equals(host.versionType())) {
+    } else if (host.version < Version.build && Version.build != -1) {
+      return Core.bundle.get("server.outdated") + "   " + Core.bundle.format("server.version", host.version, "");
+    } else if (host.version > Version.build && Version.build != -1) {
+      return Core.bundle.get("server.outdated.client") + "   " + Core.bundle.format("server.version", host.version, "");
+    } else if (host.version == Version.build && Version.type.equals(host.versionType)) {
       return ""; // not important
     } else {
-      return Core.bundle.format("server.version", host.version(), host.versionType());
+      return Core.bundle.format("server.version", host.version, host.versionType);
     }
   }
 

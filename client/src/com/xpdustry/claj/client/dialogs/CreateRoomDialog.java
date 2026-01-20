@@ -255,14 +255,14 @@ public class CreateRoomDialog extends BaseDialog {
     dest.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(2).color(Pal.accent).left();
     
     Claj.get().pingHost(server.address, server.port, s -> {
-      server.compatible = s.majorVersion() == Claj.get().provider.getVersion();
-      server.outdated = s.majorVersion() < Claj.get().provider.getVersion();
+      server.compatible = s.version == Claj.get().provider.getVersion();
+      server.outdated = s.version < Claj.get().provider.getVersion();
       
       dest.clear();
       if (server.compatible) dest.image(Icon.ok, Color.green).padRight(7).left();
       else dest.image(Icon.warning, Color.yellow).padBottom(3).left().get().scaleBy(-0.22f);
       if (Vars.mobile) dest.row();
-      dest.add(s.ping() + "ms", Color.lightGray, 0.91f).left();
+      dest.add(s.ping + "ms", Color.lightGray, 0.91f).left();
     }, e -> {
       dest.clear();
       dest.image(Icon.cancel, Color.red).left();

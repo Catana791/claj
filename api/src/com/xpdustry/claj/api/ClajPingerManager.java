@@ -211,10 +211,26 @@ public class ClajPingerManager {
     });
   }
 
-  public void serverRooms(String ip, int port, Cons<Seq<ClajRoom>> rooms, Cons<Exception> failed) {
+  public <T> void serverRooms(String ip, int port, Cons<Seq<ClajRoom<T>>> rooms, Cons<Exception> failed) {
     submit((pinger, finished) -> {
-      pinger.requestRoomList(ip, port, r -> {
+      pinger.<T>requestRoomList(ip, port, r -> {
         if (rooms != null) rooms.get(r);
+        finished.run();
+      }, error -> {
+        if (failed != null) failed.get(error);
+        finished.run();
+      });
+    });
+  }
+
+  public <T> void requestRoomInfo(ClajLink link, Cons<ClajRoom<T>> info, Runnable notFound, Cons<Exception> failed) {
+    if (link == null) return;
+    submit((pinger, finished) -> {
+      pinger.<T>requestRoomInfo(link.host, link.port, link.roomId, r -> {
+        if (info != null) info.get(r);
+        finished.run();
+      }, () -> {
+        if (notFound != null) notFound.run();
         finished.run();
       }, error -> {
         if (failed != null) failed.get(error);

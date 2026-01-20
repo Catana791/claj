@@ -20,9 +20,16 @@
 package com.xpdustry.claj.common.status;
 
 
-public record ServerState(
-  String address,
-  int port,
-  int majorVersion,
-  int ping
-) {}
+public class ServerState {
+  public final String address;
+  public final int port;
+  public final int version;
+  public final int ping;
+
+  public ServerState(String address, int port, int version, int ping) {
+    this.address = address;
+    this.port = port;
+    this.version = version;
+    this.ping = ping;
+  }
+}

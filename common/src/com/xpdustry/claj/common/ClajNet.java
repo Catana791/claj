@@ -21,8 +21,7 @@ package com.xpdustry.claj.common;
 
 import arc.func.Prov;
 import arc.net.ArcNetException;
-import arc.struct.ArrayMap;
-import arc.struct.ObjectIntMap;
+import arc.struct.ObjectMap;
 
 import com.xpdustry.claj.common.packets.Packet;
 
@@ -35,26 +34,36 @@ public class ClajNet {
   /** Identifier for CLaJ packets. */
   public static final byte id = -4;
 
-  protected static final ArrayMap<Class<?>, Prov<? extends Packet>> packets = new ArrayMap<>();
-  protected static final ObjectIntMap<Class<?>> packetToId = new ObjectIntMap<>();
+  /** Maximum number of packet that can be registered. */
+  public static final int MAX_PACKETS = 255;
 
-  /** Registers a new packet type for serialization. */
+  protected static final ObjectMap<Class<?>, Byte> packetToId = new ObjectMap<>(32);
+  protected static final ObjectMap<Byte, Prov<?>> idToPacket = new ObjectMap<>(32);
+
+  /**
+   * Registers a new packet type for serialization. Ignores if already registered.
+   * @throws IllegalArgumentException if no id is available for this packet. ({@code 255} packets max)
+   */
   public static <T extends Packet> void register(Prov<T> cons) {
     Class<?> type = cons.get().getClass();
     if (packetToId.containsKey(type)) return;
-    packetToId.put(type, packets.size);
-    packets.put(type, cons);
+    if (packetToId.size >= MAX_PACKETS) throw new IllegalArgumentException("packet limit reached");
+    byte id = (byte)packetToId.size;
+    packetToId.put(type, id);
+    idToPacket.put(id, cons);
   }
 
-  public static byte getId(Packet packet) {
-    int id = packetToId.get(packet.getClass());
-    if(id == -1) throw new ArcNetException("Unknown packet type: " + packet.getClass());
-    return (byte)id;
+  public static byte getId(Packet packet) { return getId(packet.getClass()); }
+  public static byte getId(Class<? extends Packet> packet) {
+    Byte id = packetToId.get(packet);
+    if(id == null) throw new ArcNetException("Unknown packet type: " + packet.getClass());
+    return id;
   }
 
   @SuppressWarnings("unchecked")
   public static <T extends Packet> T newPacket(byte id) {
-    if (id < 0 || id >= packets.size) throw new ArcNetException("Unknown packet id: " + id);
-    return ((Prov<T>)packets.getValueAt(id)).get();
+    Prov<?> packet = idToPacket.get(id);
+    if (packet == null) throw new ArcNetException("Unknown packet id: " + id);
+    return (T)packet.get();
   }
 }

@@ -17,17 +17,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.common.status;
+package com.xpdustry.claj.server.net;
+
+import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
+
+import com.xpdustry.claj.common.packets.Packet;
 
 
-//TODO: find a better name to get rid of mindustry related things.
-/** Copy of {@link mindustry.game.Gamemode} with just the name. */
-public enum MindustryGamemode {
-  survival,
-  sandbox,
-  attack,
-  pvp,
-  editor;
+public class RawPacket implements Packet {
+  public byte[] data = {};
 
-  public static final MindustryGamemode[] all = values();
+  public void read(ByteBufferInput read) {
+    data = new byte[read.buffer.remaining()];
+    read.readFully(data);
+  }
+
+  public void write(ByteBufferOutput write) {
+    write.write(data);
+  }
 }

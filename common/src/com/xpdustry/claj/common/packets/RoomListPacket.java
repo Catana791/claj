@@ -25,33 +25,28 @@ import java.util.BitSet;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
-import com.xpdustry.claj.common.net.stream.StreamSender;
-import com.xpdustry.claj.common.status.GameState;
-
 
 /** Can be a huge packet, should be sent with {@link StreamSender} instead. */
-public class RoomListPacket /*extends DelayedPacket*/ implements Packet {
+public class RoomListPacket extends DelayedPacket {
   public int size;
   public long[] rooms;
   public boolean[] isProtected;
-  public GameState[] states;
+  public ByteBuffer[] states;
 
   @Override
-  public void read(ByteBufferInput read) {
-    size = read.readInt();
-    rooms = new long[size];
-    isProtected = new boolean[size];
-    states = new GameState[size];
+  protected void readImpl(ByteBufferInput read) {
+    init(read.readInt());
 
-    int length = ((size << 1) + Byte.SIZE - 1) / Byte.SIZE;
+    int length = ceilDiv(size, Byte.SIZE);
     BitSet bits = BitSet.valueOf((ByteBuffer)read.buffer.slice().limit(length));
     read.skipBytes(length);
 
     for (int i=0; i<size; i++) {
-      isProtected[i] = bits.get(i << 1);
+      isProtected[i] = bits.get(i);
       rooms[i] = read.readLong();
-      if (bits.get((i << 1) + 1))
-        states[i] = RoomInfoPacket.readState(read);
+      byte[] data = new byte[read.readChar()];
+      read.readFully(data);
+      states[i] = ByteBuffer.wrap(data);
     }
   }
 
@@ -59,21 +54,34 @@ public class RoomListPacket /*extends DelayedPacket*/ implements Packet {
   public void write(ByteBufferOutput write) {
     write.writeInt(size);
 
-    BitSet bits = new BitSet(size << 1);
+    BitSet bits = new BitSet(size);
     for (int i=0; i<size; i++) {
-      if (isProtected[i]) bits.set(i << 1);
-      if (states[i] != null) bits.set((i << 1) + 1);
+      if (isProtected[i]) bits.set(i);
     }
 
-    int length = ((size << 1) + Byte.SIZE - 1) / Byte.SIZE;
+    int length = ceilDiv(size, Byte.SIZE);
     byte[] bytes = bits.toByteArray();
     write.write(bytes);
     for (int i=bytes.length; i<length; i++) write.writeByte(0);
 
     for (int i=0; i<size; i++) {
       write.writeLong(rooms[i]);
-      if (states[i] != null)
-        RoomInfoPacket.writeState(write, states[i]);
+      ByteBuffer state = states[i];
+      if (state != null) {
+        write.writeChar(state.remaining());
+        write.buffer.put(state);
+      } else write.writeChar(0);
     }
+  }
+
+  public void init(int size) {
+    this.size = size;
+    rooms = new long[size];
+    isProtected = new boolean[size];
+    states = new ByteBuffer[size];
+  }
+
+  private static int ceilDiv(int a, int b) {
+    return (a + b - 1) / b;
   }
 }

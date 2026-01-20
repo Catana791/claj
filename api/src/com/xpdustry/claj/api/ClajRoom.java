@@ -19,15 +19,13 @@
 
 package com.xpdustry.claj.api;
 
-import com.xpdustry.claj.common.status.GameState;
 
-
-public class ClajRoom {
+public class ClajRoom<T> {
   public final long roomId;
-  public boolean isPublic;
+  public boolean isPublic = true; //Note that for privacy, the server will never notify this.
   public boolean isProtected;
   /** Only presents if the room is public and the server has retrieved his state. */
-  public GameState state;
+  public T state;
   /** The link to the room. */
   public ClajLink link;
 
@@ -35,7 +33,7 @@ public class ClajRoom {
     this.roomId = roomId;
   }
 
-  public ClajRoom(long roomId, boolean isPublic, boolean isProtected, GameState state, ClajLink link) {
+  public ClajRoom(long roomId, boolean isPublic, boolean isProtected, T state, ClajLink link) {
     this.roomId = roomId;
     this.isPublic = isPublic;
     this.isProtected = isProtected;

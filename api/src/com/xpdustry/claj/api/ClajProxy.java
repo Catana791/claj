@@ -19,12 +19,15 @@
 
 package com.xpdustry.claj.api;
 
+import java.nio.ByteBuffer;
+
 import arc.Core;
 import arc.func.Cons;
 import arc.net.*;
 
 import com.xpdustry.claj.api.net.ProxyClient;
 import com.xpdustry.claj.common.ClajPackets.*;
+import com.xpdustry.claj.common.net.stream.StreamSender;
 import com.xpdustry.claj.common.packets.*;
 import com.xpdustry.claj.common.status.*;
 
@@ -134,11 +137,7 @@ public class ClajProxy extends ProxyClient {
   public ClajLink getLink() {
     return roomCreated() ? new ClajLink(connectHost.getHostName(), connectTcpPort, roomId) : null;
   }
-  
-  public GameState getState() {
-    return provider.getRoomState(this);
-  }
-  
+
   @Override
   public void close() {
     if (isConnected()) closeRoom();
@@ -159,19 +158,23 @@ public class ClajProxy extends ProxyClient {
   }
   
   public void notifyGameState() {
-    GameState state = getState();
-    if (state != null)
-      sendTCP(makeRoomStatePacket(roomId, state));
+    ByteBuffer state = (ByteBuffer)provider.writeRoomState(this).flip();
+    Packet p = makeRoomStatePacket(roomId, state);
+    // In case of a big state, chunk it
+    if (state.remaining() < 8128) sendTCP(p);
+    else if (state.remaining() > Character.MAX_VALUE) 
+      throw new IllegalArgumentException("Buffer size must be less than " + Character.MAX_VALUE);
+    else StreamSender.send(this, p);
   }
 
-  protected Object makeRoomStatePacket(long roomId, GameState state) {
+  protected Packet makeRoomStatePacket(long roomId, ByteBuffer state) {
     RoomInfoPacket p = new RoomInfoPacket();
     p.roomId = roomId;
     p.state = state;
     return p;
   }
   
-  protected Object makeRoomConfigPacket(boolean isPublic, boolean isProtected, short password) {
+  protected Packet makeRoomConfigPacket(boolean isPublic, boolean isProtected, short password) {
     RoomConfigPacket p = new RoomConfigPacket();
     p.isPublic = isPublic;
     p.isProtected = isProtected;
@@ -179,19 +182,19 @@ public class ClajProxy extends ProxyClient {
     return p;
   }
   
-  protected Object makeRoomCreatePacket(int version, ClajType type) {
+  protected Packet makeRoomCreatePacket(int version, ClajType type) {
     RoomCreationRequestPacket p = new RoomCreationRequestPacket();
     p.version = version;
     p.type = type;
     return p;
   }
   
-  protected Object makeRoomClosePacket() {
+  protected Packet makeRoomClosePacket() {
     return new RoomClosureRequestPacket();
   }
   
   @Override
-  protected Object makeConWrapPacket(int conId, Object object, boolean tcp) { 
+  protected Packet makeConWrapPacket(int conId, Object object, boolean tcp) { 
     ConnectionPacketWrapPacket p = new ConnectionPacketWrapPacket();
     p.conID = conId;
     p.isTCP = tcp;
@@ -200,7 +203,7 @@ public class ClajProxy extends ProxyClient {
   }
 
   @Override
-  protected Object makeConClosePacket(int conId, DcReason reason) { 
+  protected Packet makeConClosePacket(int conId, DcReason reason) { 
     ConnectionClosedPacket p = new ConnectionClosedPacket();
     p.conID = conId;
     p.reason = reason;

@@ -19,10 +19,6 @@
 
 package com.xpdustry.claj.common;
 
-import arc.net.DcReason;
-import arc.util.io.ByteBufferInput;
-import arc.util.io.ByteBufferOutput;
-
 import com.xpdustry.claj.common.net.stream.StreamChunk;
 import com.xpdustry.claj.common.net.stream.StreamHead;
 import com.xpdustry.claj.common.packets.*;
@@ -45,6 +41,7 @@ public class ClajPackets {
     ClajNet.register(RoomListRequestPacket::new);
     ClajNet.register(RoomListPacket::new);
     ClajNet.register(RoomInfoRequestPacket::new);
+    ClajNet.register(RoomInfoDeniedPacket::new);
     ClajNet.register(RoomInfoPacket::new);
     ClajNet.register(ServerInfoPacket::new);
     ClajNet.register(ClajTextMessagePacket::new);
@@ -62,19 +59,6 @@ public class ClajPackets {
 
   /** Generic client disconnection event. */
   public static class Disconnect implements Packet {
-    public DcReason reason;
-  }
-  
-  public static class RawPacket implements Packet {
-    public byte[] data = {};
-
-    public void read(ByteBufferInput read) { 
-      data = new byte[read.buffer.remaining()];
-      read.readFully(data);
-    }
-    
-    public void write(ByteBufferOutput write) {
-      write.write(data);
-    }
+    public arc.net.DcReason reason;
   }
 }
