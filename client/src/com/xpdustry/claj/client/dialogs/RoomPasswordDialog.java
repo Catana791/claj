@@ -34,7 +34,9 @@ import com.xpdustry.claj.common.util.Strings;
 
 
 public class RoomPasswordDialog extends BaseDialog {
-  public static int digits = 4;
+  public static int DIGITS = 4;
+  public static int MIN_VALUE = 0;
+  public static int MAX_VALUE = 9999;
 
   final TextField passwordField = new TextField();
   final TextButton connectButton;
@@ -49,7 +51,7 @@ public class RoomPasswordDialog extends BaseDialog {
 
     cont.table(table -> {
       table.add("@claj.password.field").padRight(5f).right();
-      table.add(passwordField).maxTextLength(digits).valid(this::validate).size(180f, 54f).left().row();
+      table.add(passwordField).maxTextLength(DIGITS).valid(this::validate).size(180f, 54f).left().row();
       passwordField.setFilter(TextFieldFilter.digitsOnly);
       passwordField.update(passwordField::requestKeyboard);
     }).padBottom(75f).row();
@@ -89,15 +91,16 @@ public class RoomPasswordDialog extends BaseDialog {
   }
 
   protected void confirm() {
+    short p = password;
     hide();
-    confirm.get(password);
+    confirm.get(p);
   }
 
   protected boolean validate(String password) {
-    valid = password.length() == digits && Strings.matches(password, Character::isDigit);
+    valid = password.length() == DIGITS && Strings.matches(password, Character::isDigit);
     if (valid) {
       int parsed = Strings.parseInt(password, -1);
-      this.password = parsed < Short.MIN_VALUE || parsed > Short.MAX_VALUE ? -1 : (short)parsed;
+      this.password = parsed < MIN_VALUE || parsed > MAX_VALUE ? -1 : (short)parsed;
     }
     return valid;
   }

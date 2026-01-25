@@ -140,7 +140,7 @@ public class MindustryClajProvider implements ClajProvider {
   @Override
   public void showMessage(MessageType message) {
     Call.sendMessage("[scarlet][[CLaJ Server]:[] " +
-        Core.bundle.get("claj.message." + Strings.camelToKebab(message.name())));
+      Core.bundle.get("claj.message." + Strings.camelToKebab(message.name())));
   }
 
   @Override

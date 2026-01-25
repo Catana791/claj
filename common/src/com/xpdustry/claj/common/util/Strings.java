@@ -146,7 +146,7 @@ public class Strings extends arc.util.Strings {
       lengths = newLengths;
     }
     
-    int max = max(columns, a -> a.size), fSize = filler.length();
+    int max = Structs.max(columns, a -> a.size), fSize = filler.length();
     Seq<String> arr = new Seq<>(max);
     StringBuilder builder = new StringBuilder();
     String[] fillers = new String[columns.length];
@@ -293,91 +293,41 @@ public class Strings extends arc.util.Strings {
   
   /** Taken from the {@link String#repeat(int)} method of JDK 11 */
   public static String repeat(String str, int count) {
-      if (count < 0) throw new IllegalArgumentException("count is negative: " + count);
-      if (count == 1) return str;
+    if (count < 0) throw new IllegalArgumentException("count is negative: " + count);
+    if (count == 1) return str;
 
-      final byte[] value = str.getBytes();
-      final int len = value.length;
-      if (len == 0 || count == 0)  return "";
-      if (Integer.MAX_VALUE / count < len) throw new OutOfMemoryError("Required length exceeds implementation limit");
-      if (len == 1) {
-          final byte[] single = new byte[count];
-          Arrays.fill(single, value[0]);
-          return new String(single);
-      }
-      
-      final int limit = len * count;
-      final byte[] multiple = new byte[limit];
-      System.arraycopy(value, 0, multiple, 0, len);
-      int copied = len;
-      for (; copied < limit - copied; copied <<= 1) 
-          System.arraycopy(multiple, 0, multiple, copied, copied);
-      System.arraycopy(multiple, 0, multiple, copied, limit - copied);
-      return new String(multiple);
+    final byte[] value = str.getBytes();
+    final int len = value.length;
+    if (len == 0 || count == 0)  return "";
+    if (Integer.MAX_VALUE / count < len) throw new OutOfMemoryError("Required length exceeds implementation limit");
+    if (len == 1) {
+      final byte[] single = new byte[count];
+      Arrays.fill(single, value[0]);
+      return new String(single);
+    }
+    
+    final int limit = len * count;
+    final byte[] multiple = new byte[limit];
+    System.arraycopy(value, 0, multiple, 0, len);
+    int copied = len;
+    for (; copied < limit - copied; copied <<= 1) 
+      System.arraycopy(multiple, 0, multiple, copied, copied);
+    System.arraycopy(multiple, 0, multiple, copied, limit - copied);
+    return new String(multiple);
+  }
+  
+  public static String repeat(char c, int count) {
+    final char[] single = new char[count];
+    Arrays.fill(single, c);
+    return new String(single);
   }
 
-  public static <T> int max(Iterable<T> list, Intf<T> intifier) {
-    boolean first = true;
-    int index = 0;
-    
-    for (T i : list) {
-      int s = intifier.get(i);
-      if (first) index = s;
-      else if (s > index) index = s;
-      first = false;
-    }
-    
-    return index;
-  }
-  
-  public static <T> int max(T[] list, Intf<T> intifier) {
-    boolean first = true;
-    int index = 0;
-    
-    for (T i : list) {
-      int s = intifier.get(i);
-      if (first) index = s;
-      else if (s > index) index = s;
-      first = false;
-    }
-    
-    return index;
-  }
-  
-  public static <T> int min(Iterable<T> list, Intf<T> intifier) {
-    boolean first = true;
-    int index = 0;
-    
-    for (T i : list) {
-      int s = intifier.get(i);
-      if (first) index = s;
-      else if (s < index) index = s;
-      first = false;
-    }
-    
-    return index;
-  }
-  
-  public static <T> int min(T[] list, Intf<T> intifier) {
-    boolean first = true;
-    int index = 0;
-    
-    for (T i : list) {
-      int s = intifier.get(i);
-      if (first) index = s;
-      else if (s < index) index = s;
-      first = false;
-    }
-    
-    return index;
-  }
-  
   public static int maxLength(Iterable<? extends String> list) {
-    return max(list, str -> str.length());
+    return Structs.max(list, String::length);
   }
   
   public static int maxLength(String... list) {
-    return max(list, str -> str.length());
+    return Structs.max(list, String::length);
   }
 
   //TODO: need to merge these three methods in one StringBuilder

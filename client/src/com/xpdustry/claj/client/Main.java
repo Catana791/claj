@@ -69,14 +69,11 @@ public class Main extends Mod {
     Claj.get().stopPingers();
     ClajUi.join.resetLastLink(); // Avoid reconnect to a room after connecting to a normal server
   }
-  
-  /** Cached meta to avoid searching every times. */
-  private static Mods.ModMeta meta;
+
   /** @return the mod meta, using this class. */
   public static Mods.ModMeta getMeta() {
-    if (meta != null) return meta;
     Mods.LoadedMod load = Vars.mods.getMod(Main.class);
     if(load == null) throw new IllegalArgumentException("Mod is not loaded yet (or missing)!");
-    return meta = load.meta;
+    return load.meta;
   }
 }

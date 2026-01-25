@@ -21,6 +21,7 @@ package com.xpdustry.claj.client;
 
 import arc.Core;
 import arc.func.Cons;
+import arc.net.Connection;
 import arc.util.Ratekeeper;
 
 import mindustry.Vars;
@@ -62,8 +63,21 @@ public class MindustryClajProxy extends ClajProxy {
   }
 
   public Iterable<NetConnection> getMindustryConnections() {
-    return Structs.generator(getConnections(), c -> c.getArbitraryData() instanceof NetConnection,
-                             c -> (NetConnection)c.getArbitraryData());
+    return Structs.generator(getConnections(),
+                             MindustryClajProxy::isMindustryConnection,
+                             MindustryClajProxy::toMindustryConnection);
+  }
+
+  public int getMindustryConnectionsSize() {
+    return Structs.count(getConnections(), MindustryClajProxy::isMindustryConnection);
+  }
+
+  public static boolean isMindustryConnection(Connection connection) {
+    return connection.getArbitraryData() instanceof NetConnection;
+  }
+
+  public static NetConnection toMindustryConnection(Connection connection) {
+    return connection.getArbitraryData() instanceof NetConnection nc ? nc : null;
   }
 
   public void kickAllConnections(KickReason reason) {

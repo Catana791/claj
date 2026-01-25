@@ -22,8 +22,7 @@ package com.xpdustry.claj.common.util;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import arc.func.Boolf;
-import arc.func.Func;
+import arc.func.*;
 import arc.util.Reflect;
 
 
@@ -108,5 +107,61 @@ public class Structs extends arc.util.Structs {
       public boolean hasNext() { return hasNext; }
       public R next() { return extractor.get(advance()); }
     };
+  }
+
+  public static <T> int max(Iterable<T> list, Intf<T> intifier) {
+    boolean first = true;
+    int index = 0;
+    
+    for (T i : list) {
+      int s = intifier.get(i);
+      if (first) index = s;
+      else if (s > index) index = s;
+      first = false;
+    }
+    
+    return index;
+  }
+  
+  public static <T> int max(T[] list, Intf<T> intifier) {
+    boolean first = true;
+    int index = 0;
+    
+    for (T i : list) {
+      int s = intifier.get(i);
+      if (first) index = s;
+      else if (s > index) index = s;
+      first = false;
+    }
+    
+    return index;
+  }
+  
+  public static <T> int min(Iterable<T> list, Intf<T> intifier) {
+    boolean first = true;
+    int index = 0;
+    
+    for (T i : list) {
+      int s = intifier.get(i);
+      if (first) index = s;
+      else if (s < index) index = s;
+      first = false;
+    }
+    
+    return index;
+  }
+  
+  public static <T> int min(T[] list, Intf<T> intifier) {
+    boolean first = true;
+    int index = 0;
+    
+    for (T i : list) {
+      int s = intifier.get(i);
+      if (first) index = s;
+      else if (s < index) index = s;
+      first = false;
+    }
+    
+    return index;
   }
 }

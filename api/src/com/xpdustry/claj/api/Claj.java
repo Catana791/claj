@@ -70,7 +70,9 @@ public class Claj {
     this.provider = provider;
     this.proxies = proxies;
     this.pingers = pingers;
-    Core.app.addListener(new ApplicationListener() { public void dispose() { Claj.this.dispose(); } }); 
+    Core.app.addListener(new ApplicationListener() { 
+      public void dispose() { Claj.this.dispose(); } 
+    }); 
   }
 
   public boolean hasOpenRoom() {

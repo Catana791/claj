@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -30,6 +30,7 @@ import arc.util.Timer;
 
 import mindustry.Vars;
 import mindustry.gen.Icon;
+import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
 
 import com.xpdustry.claj.api.Claj;
@@ -55,27 +56,27 @@ public class JoinDialog extends BaseDialog {
       joinRoom();
     });
     shown(linkField::requestKeyboard);
-    
+
     cont.defaults().width(Vars.mobile ? 450f : 550f);
     cont.labelWrap("@claj.join.note").padBottom(10f).left().row();
     cont.table(table -> {
-      table.add("@claj.join.link").padRight(5f).left();
-      table.add(linkField).maxTextLength(64).valid(this::setLink).height(54f).growX().get();
-      table.button(Icon.paste, 40f, this::importLink).size(54f).padLeft(10)
+      table.add("@claj.join.link").padRight(10f).left();
+      table.add(linkField).maxTextLength(64).valid(this::setLink).height(50f).growX().get();
+      table.button(Icon.paste, Styles.emptyi, this::importLink).size(50f).padLeft(5)
            .tooltip("@schematic.copy.import").row();
       table.add();
-      table.labelWrap(() -> output).left().growX().row();
+      table.labelWrap(() -> output).left().growX().padTop(5).row();
     }).row();
 
     buttons.defaults().size(140f, 60f).pad(4f);
     buttons.button("@cancel", this::hide);
     buttons.button("@ok", this::joinRoom)
            .disabled(button -> !valid || linkField.getText().isEmpty() || Vars.net.active());
-    
+
     //Add the 'Join via CLaJ' button in the join dialog
     addButton();
   }
-  
+
   /** @deprecated i keep that until the next release. */
   @Deprecated
   void addButton() {
@@ -99,25 +100,25 @@ public class JoinDialog extends BaseDialog {
     linkField.setText(text);
     Vars.ui.showInfoFade("@claj.join.import");
   }
-  
+
   public void joinRoom() {
     if (Vars.player.name.trim().isEmpty()) {
       Vars.ui.showInfo("@noname");
       return;
     }
-    
-    try { joinRoom(ClajLink.fromString(linkField.getText())); } 
+
+    try { joinRoom(ClajLink.fromString(linkField.getText())); }
     catch (Exception e) {
       valid = false;
       Vars.ui.showErrorMessage(Core.bundle.get("claj.join.invalid") + ' ' + e.getLocalizedMessage());
     }
   }
-  
+
   public void joinRoom(ClajLink link, boolean isProtected) {
     if (isProtected) ClajUi.password.show(pass -> joinRoom(link, pass));
     else joinRoom(link);
   }
-  
+
   public void joinRoom(ClajLink link) { joinRoom(link, ClajPinger.NO_PASSWORD); }
   public void joinRoom(ClajLink link, short password) {
     boolean[] ignore = {false};
@@ -127,7 +128,7 @@ public class JoinDialog extends BaseDialog {
       ignore[0] = true;
       Vars.netClient.disconnectQuietly();
     });
-    
+
     Time.runTask(2f, () -> {
       if (ignore[0]) return;
       Claj.get().joinRoom(lastLink = link, lastPassword = password, () -> {
@@ -138,23 +139,23 @@ public class JoinDialog extends BaseDialog {
       }, r -> joinError(link, r), e -> {
         if (!ignore[0]) Vars.net.handleException(e);
       });
-    });    
+    });
   }
-  
+
   public void joinError(ClajLink link, RejectReason reason) {
     Vars.ui.loadfrag.hide();
     switch (reason) {
       default:
         ClajUi.password.show(pass -> joinRoom(link, pass));
         if (reason == RejectReason.passwordRequired) return;
-        break;     
+        break;
       case serverClosing:
-        hide(); 
+        hide();
       case roomNotFound:
     }
     Vars.ui.showErrorMessage("@claj.reject." + Strings.camelToKebab(reason.name()));
   }
-  
+
   public void rejoinRoom() {
     if (lastLink == null) return;
     Vars.ui.loadfrag.show("@reconnecting");
@@ -173,14 +174,14 @@ public class JoinDialog extends BaseDialog {
         ping[0].cancel();
     });
   }
-  
+
   public void resetLastLink() {
     lastLink = null;
   }
-  
+
   public boolean setLink(String link) {
-    try { 
-      ClajLink.fromString(linkField.getText()); 
+    try {
+      ClajLink.fromString(linkField.getText());
       output = "@claj.join.valid";
       return valid = true;
     } catch (Exception e) {

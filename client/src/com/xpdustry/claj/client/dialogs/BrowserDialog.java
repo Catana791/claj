@@ -391,29 +391,29 @@ public class BrowserDialog extends BaseDialog {
     cont.clear();
     cont.top();
     cont.table(name -> {
-      name.add("@name").padRight(10);
+      name.add("@name").padRight(5);
       name.field(Core.settings.getString("name"), text -> {
         Vars.player.name(text);
         Core.settings.put("name", text);
       }).maxTextLength(Vars.maxNameLength).grow().pad(8);
 
-      name.button(Tex.whiteui, Styles.squarei, 40, () -> {
+      name.button(Tex.whiteui, Styles.squarei, 36, () -> {
         new PaletteDialog().show(color -> {
           Vars.player.color().set(color);
           Core.settings.put("color-0", color.rgba8888());
         });
-      }).size(54f).update(b -> b.getStyle().imageUpColor = Vars.player.color());
+      }).size(50f).update(b -> b.getStyle().imageUpColor = Vars.player.color());
     }).width(columns == 1 ? width : MIN_CARD_SIZE * Math.min(1.5f, columns)).height(70f).pad(4).row();
 
     cont.table(search -> {
-      search.add("@search").padRight(10);
+      search.add("@search").padRight(5);
       search.field(serverSearch, text -> {
         serverSearch = text.trim().toLowerCase();
         filterRooms();
       }).grow().pad(8);
-      search.button(Icon.zoom, Styles.emptyi, this::refreshAll).size(54f);
-      search.button(Icon.refresh, Styles.emptyi, this::refreshAll).size(54f).tooltip("@servers.refresh");
-    }).width(columns == 1 ? width : MIN_CARD_SIZE * Math.min(2, columns)) .height(50f).pad(4).padBottom(25).row();
+      search.button(Icon.zoom, Styles.emptyi, this::refreshAll).size(50f);
+      search.button(Icon.refresh, Styles.emptyi, this::refreshAll).size(50f).tooltip("@servers.refresh");
+    }).width(columns == 1 ? width : MIN_CARD_SIZE * Math.min(2, columns)).height(50f).pad(4).padBottom(25).row();
 
     cont.pane(hosts).width((width + 5) * columns + 33).pad(0).get().setScrollingDisabled(true, false);
     cont.row();

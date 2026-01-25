@@ -68,8 +68,7 @@ public class ClajType {
 
   @Override
   public boolean equals(Object object) {
-    return this == object && object instanceof ClajType other &&
-           Arrays.equals(rawType, other.rawType);
+    return this == object || object instanceof ClajType other && Arrays.equals(rawType, other.rawType);
   }
 
   @Override
@@ -111,7 +110,7 @@ public class ClajType {
     return truncate(str.getBytes(Strings.utf8), SIZE, false);
   }
 
-  protected static byte[] truncate(byte[] data, int max, boolean copy) {
+  public static byte[] truncate(byte[] data, int max, boolean copy) {
     if (copy) data = Arrays.copyOf(data, Math.min(data.length, max));
     else if (data.length > SIZE) data = Arrays.copyOf(data, max);
     return data;

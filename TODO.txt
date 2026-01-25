@@ -1,0 +1,5 @@
+- auto room hosting to the nearest server
+- move Mindustry client/server implementation to another repo (claj-mindustry)
+- There is an issue with the server on room host side, it's keep closing connections for no reasons.
+  There are no errors in every sides, so pretty difficult to find the problem.
+  Need to investigate more and reverse-engineering more the Mindustry protocol.
