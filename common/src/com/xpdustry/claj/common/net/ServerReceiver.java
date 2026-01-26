@@ -19,7 +19,6 @@
 
 package com.xpdustry.claj.common.net;
 
-import arc.Core;
 import arc.func.Cons;
 import arc.func.Cons2;
 import arc.net.Connection;
@@ -36,13 +35,16 @@ import com.xpdustry.claj.common.packets.Packet;
 import com.xpdustry.claj.common.util.Strings;
 
 
-/** A server listener delegating packet decoding and reception to the main app. */
+/** A server listener that can delegate packet decoding and reception to the main app. */
 public class ServerReceiver {
   protected final ObjectMap<Class<?>, Cons2<Connection, ?>> listeners = new ObjectMap<>();
-  protected boolean delegated;
+  protected Cons<Runnable> delegator;
 
-  public ServerReceiver(EndPoint server) { this(server, true); }
-  public ServerReceiver(EndPoint server, boolean delegateReceive) {
+  /** Receive will not be delegated. */
+  public ServerReceiver(EndPoint server) { this(server, null); }
+  public ServerReceiver(EndPoint server, Cons<Runnable> delegator) {
+    this.delegator = delegator;
+
     server.addListener(new NetListener() {
       @Override
       public void connected(Connection connection) {
@@ -68,7 +70,7 @@ public class ServerReceiver {
 
   /** Whether packet reception is delegated to the main thread or not. */
   public boolean delegated() {
-    return delegated;
+    return delegator != null;
   }
 
   public <T extends Packet> void handle(Class<T> type, Runnable listener) {
@@ -90,7 +92,7 @@ public class ServerReceiver {
 
   /** Send packet reception to the main thread or not according to {@link #delegated}. */
   public void delegateReceive(Connection connection, Packet packet) {
-    if (delegated) Core.app.post(() -> received(connection, packet));
+    if (delegated()) delegator.get(() -> received(connection, packet));
     else received(connection, packet);
   }
 

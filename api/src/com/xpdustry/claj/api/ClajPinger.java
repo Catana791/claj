@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
 
-import arc.Core;
 import arc.func.Cons;
 import arc.net.ArcNet;
 import arc.net.Client;
@@ -79,7 +78,7 @@ public class ClajPinger extends Client {
     super(8192, 8192, new Serializer());
     ((Serializer)getSerialization()).set(this);
     this.provider = provider;
-    ClientReceiver receiver = new ClientReceiver(this, false); // no need to delegate to the main thread
+    ClientReceiver receiver = new ClientReceiver(this, null); // no need to delegate to the main thread
 
     receiver.handle(RoomJoinAcceptedPacket.class, p -> {
       if (p.roomId != -1 && p.roomId == requestedRoom)
@@ -175,7 +174,7 @@ public class ClajPinger extends Client {
 
   // Helpers
   protected <T> void postTask(Cons<T> consumer, T object) { postTask(() -> consumer.get(object)); }
-  protected void postTask(Runnable run) { Core.app.post(run); }
+  protected void postTask(Runnable run) { provider.postTask(run); }
 
   protected synchronized void resetPingState(Cons<ServerState> success, Cons<Exception> failed) {
     time = System.currentTimeMillis();

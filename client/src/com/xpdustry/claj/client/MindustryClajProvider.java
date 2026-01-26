@@ -71,6 +71,11 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   @Override
+  public void postTask(Runnable task) {
+    Core.app.post(task);
+  }
+
+  @Override
   public ExecutorService getExecutor() {
     return Vars.mainExecutor;
   }

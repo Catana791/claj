@@ -21,7 +21,6 @@ package com.xpdustry.claj.api;
 
 import java.nio.ByteBuffer;
 
-import arc.Core;
 import arc.func.Cons;
 import arc.net.DcReason;
 
@@ -49,7 +48,7 @@ public class ClajProxy extends ProxyClient {
   protected ClajLink link;
 
   public ClajProxy(ClajProvider provider) {
-    super(32768, 16384, new ClajSerializer(), provider.getConnectionListener());
+    super(32768, 16384, new ClajSerializer(), provider.getConnectionListener(), provider::postTask);
     this.provider = provider;
 
     receiver.handle(Connect.class, this::requestRoomId);
@@ -107,7 +106,7 @@ public class ClajProxy extends ProxyClient {
 
   // Helpers
   protected <T> void postTask(Cons<T> consumer, T object) { postTask(() -> consumer.get(object)); }
-  protected void postTask(Runnable run) { Core.app.post(run); }
+  protected void postTask(Runnable run) { provider.postTask(run); }
 
   protected void runRoomCreated(long roomId) {
     ignoreExceptions = true;
@@ -174,7 +173,7 @@ public class ClajProxy extends ProxyClient {
   }
 
   public void notifyGameState() {
-    if (!roomCreated()) return; 
+    if (!roomCreated()) return;
     ByteBuffer state = (ByteBuffer)provider.writeRoomState(this).flip();
     Packet p = makeRoomStatePacket(roomId, state);
     // In case of a big state, chunk it

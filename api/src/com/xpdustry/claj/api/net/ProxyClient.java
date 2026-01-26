@@ -22,6 +22,7 @@ package com.xpdustry.claj.api.net;
 import java.io.IOException;
 import java.net.InetAddress;
 
+import arc.func.Cons;
 import arc.net.*;
 import arc.struct.IntMap;
 import arc.util.Log;
@@ -56,10 +57,11 @@ public abstract class ProxyClient extends Client {
   protected volatile boolean shutdown = true, ignoreExceptions, connecting;
   protected ClientReceiver receiver;
 
-  public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization, NetListener conListener) {
+  public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization, NetListener conListener,
+                     Cons<Runnable> taskPoster) {
     super(writeBufferSize, objectBufferSize, serialization);
     this.conListener = conListener;
-    this.receiver = new ClientReceiver(this);
+    receiver = new ClientReceiver(this, taskPoster);
   }
 
   /**

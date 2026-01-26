@@ -30,13 +30,15 @@ import com.xpdustry.claj.common.status.*;
 
 /** Interface to provide implementation dependent client-side things. */
 public interface ClajProvider {
+  /** Used to post tasks to the main thread, when receiving a packet or running a callback. */
+  default void postTask(Runnable task) { task.run(); }
   /** Executor used to post connection tasks. If {@code null}, these operations will be blocking. */
   default ExecutorService getExecutor() { return null; }
-  // /** The ping executor used to post blocking ping tasks. Tipi */
+  // /** The ping executor used to post blocking ping tasks. */
   // default ExecutorService getPingExecutor() { return getExecutor(); }
 
   /** Used to create new proxy clients. Cannot be {@code null}. */
-  default ClajProxy newProxy() { return new ClajProxy(this); };
+  default ClajProxy newProxy() { return new ClajProxy(this); }
   /** Used to create new pinger clients. Cannot be {@code null}. */
   default ClajPinger newPinger() { return new ClajPinger(this); }
 

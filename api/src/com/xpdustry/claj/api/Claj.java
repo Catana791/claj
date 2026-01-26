@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -31,22 +31,22 @@ import com.xpdustry.claj.common.status.*;
 
 public class Claj {
   protected static Claj INSTANCE;
-  
+
   public static boolean initialized() {
     return INSTANCE != null;
   }
-  
+
   public static Claj get() {
     if (!initialized()) throw new IllegalStateException("Claj#init() must be called before");
     return INSTANCE;
   }
-  
+
   /** Initializes the global CLaJ manager using {@code 1} proxy and {@code 4} pingers. */
-  public static Claj init(ClajProvider provider) { 
-    return init(provider, 1, 4); 
+  public static Claj init(ClajProvider provider) {
+    return init(provider, 1, 4);
   }
-  
-  /** 
+
+  /**
    * Initializes the global CLaJ manager, and the {@link ConnectionPacketWrapPacket} serializer.
    * @param provider the implementation specific things
    * @param proxies number of pooled proxies
@@ -56,44 +56,46 @@ public class Claj {
     if (initialized()) throw new IllegalStateException("Claj is already initialized");
     ClajPackets.init(); // Register packets first
     ConnectionPacketWrapPacket.serializer = provider.getPacketWrapperSerializer();
-    INSTANCE = new Claj(provider, new ClajProxyManager(provider, proxies), 
+    INSTANCE = new Claj(provider, new ClajProxyManager(provider, proxies),
                         new ClajPingerManager(provider, pingers));
     return INSTANCE;
   }
-  
-  
+
+
   public final ClajProvider provider;
   public final ClajProxyManager proxies;
   public final ClajPingerManager pingers;
-  
+
   public Claj(ClajProvider provider, ClajProxyManager proxies, ClajPingerManager pingers) {
     this.provider = provider;
     this.proxies = proxies;
     this.pingers = pingers;
-    Core.app.addListener(new ApplicationListener() { 
-      public void dispose() { Claj.this.dispose(); } 
-    }); 
+    // Automatically disposes workers when the application closes, if defined
+    Core.app.addListener(new ApplicationListener() {
+      @Override
+      public void dispose() { Claj.this.dispose(); }
+    });
   }
 
   public boolean hasOpenRoom() {
     return proxies.hasOpenRoom();
   }
-  
+
   public void closeRooms() {
     proxies.closeAllRooms();
   }
-  
+
   public void stopPingers() {
     pingers.stop();
   }
-  
+
   /** Stop the room and the joiner. */
   public void dispose() {
     proxies.dispose();
     pingers.dispose();
   }
 
-  public void createRoom(String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed, 
+  public void createRoom(String host, int port, Cons<ClajLink> created, Cons<CloseReason> closed,
                          Cons<Throwable> failed) {
     proxies.createRoom(host, port, created, closed, failed);
   }
@@ -101,8 +103,8 @@ public class Claj {
   public void joinRoom(ClajLink link, Runnable success, Cons<RejectReason> reject, Cons<Exception> failed) {
     joinRoom(link, ClajPinger.NO_PASSWORD, success, reject, failed);
   }
-  
-  public void joinRoom(ClajLink link, short password, Runnable success, Cons<RejectReason> reject, 
+
+  public void joinRoom(ClajLink link, short password, Runnable success, Cons<RejectReason> reject,
                        Cons<Exception> failed) {
     pingers.joinRoom(link, password, success, reject, failed);
   }
@@ -110,7 +112,7 @@ public class Claj {
   public void pingHost(String host, int port, Cons<ServerState> success, Cons<Exception> failed) {
     pingers.pingHost(host, port, success, failed);
   }
-  
+
   public <T> void serverRooms(String host, int port, Cons<Seq<ClajRoom<T>>> rooms, Cons<Exception> failed) {
     pingers.serverRooms(host, port, rooms, failed);
   }
