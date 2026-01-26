@@ -35,7 +35,7 @@ public class AddServerDialog extends mindustry.ui.dialogs.BaseDialog {
     buttons.defaults().size(140f, 60f).pad(4f);
 
     cont.table(table -> {
-      table.add("@claj.manage.server-name").padRight(5f).right();
+      table.add("@name").padRight(5f).right();
       table.add(nameField).maxTextLength(64).size(320f, 54f).left().row();
       table.add("@joingame.ip").padRight(5f).right();
       table.add(addressField).maxTextLength(64).valid(this::validate).size(320f, 54f).left().row();
