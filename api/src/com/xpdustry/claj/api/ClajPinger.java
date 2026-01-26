@@ -25,6 +25,7 @@ import java.nio.channels.Selector;
 
 import arc.Core;
 import arc.func.Cons;
+import arc.net.ArcNet;
 import arc.net.Client;
 import arc.net.DcReason;
 import arc.net.FrameworkMessage;
@@ -104,11 +105,13 @@ public class ClajPinger extends Client {
   }
 
   @Override
-  public void update(int timeout) throws IOException {
-    super.update(canceling ? 0 : timeout);
-    if (pinging && !pingReceived && System.currentTimeMillis() - time >= pingTimeout)
-      runPingFailed(new RuntimeException("Ping timed out"));
-    if (canceling) close();
+  public void update(int timeout) {
+    try {
+      super.update(canceling ? 0 : timeout);
+      if (pinging && !pingReceived && System.currentTimeMillis() - time >= pingTimeout)
+        runPingFailed(new RuntimeException("Ping timed out"));
+      if (canceling) close();
+    } catch (Exception e) { ArcNet.handleError(e); }
   }
 
   @Override
@@ -209,11 +212,12 @@ public class ClajPinger extends Client {
     // Avoid creating useless objects if the callback is not defined.
     if (listInfo == null) return;
     Seq<ClajRoom<?>> roomList = new Seq<>(size);
+    ClajType type = provider.getType();
     for (int i=0; i<size; i++) {
       if (rooms[i] == ClajProxy.UNCREATED_ROOM) continue; // ignore invalid rooms
       roomList.add(new ClajRoom<>(
-        rooms[i], true, isProtected[i], 
-        provider.readRoomState(rooms[i], provider.getType(), states[i]),
+        rooms[i], true, isProtected[i],
+        provider.readRoomState(rooms[i], type, states[i]),
         new ClajLink(connectHost, connectPort, rooms[i])
       ));
     }
@@ -267,7 +271,7 @@ public class ClajPinger extends Client {
   protected void runInfoSuccess(long roomId, boolean isProtected, ClajType type, ByteBuffer state) {
     if (infoSuccess != null) {
       ClajRoom<?> room = new ClajRoom<>(
-        roomId, true, isProtected, 
+        roomId, true, isProtected,
         provider.readRoomState(roomId, type, state),
         new ClajLink(connectHost, connectPort, roomId)
       );

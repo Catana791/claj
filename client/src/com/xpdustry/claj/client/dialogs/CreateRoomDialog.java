@@ -302,9 +302,10 @@ public class CreateRoomDialog extends BaseDialog {
   }
 
   public void showError(CloseReason reason) {
+    String key = "@claj.room." + Strings.camelToKebab(reason.name());
     switch (reason) {
-      case closed, serverClosed -> Vars.ui.showText("", "@claj.room." + Strings.camelToKebab(reason.name()));
-      default -> Vars.ui.showErrorMessage("@claj.room." + Strings.camelToKebab(reason.name()));
+      case closed, serverClosed -> Vars.ui.showText("", key);
+      default -> Vars.ui.showErrorMessage(key);
     }
 
   }
