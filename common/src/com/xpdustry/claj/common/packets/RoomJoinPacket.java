@@ -26,6 +26,7 @@ import com.xpdustry.claj.common.status.ClajType;
 
 
 public class RoomJoinPacket extends RoomLinkPacket {
+  public boolean withPassword;
   /** Room pin password. */
   public short password = -1;
   /** CLaJ Implementation type. 16 bytes max. */
@@ -36,14 +37,21 @@ public class RoomJoinPacket extends RoomLinkPacket {
     super.readImpl(read);
     // Make it compatible with older versions where room password wasn't here
     // This will only work if the room doesn't have a password set
-    boolean remaining = read.buffer.hasRemaining();
-    password = remaining ? read.readShort() : -1;
-    type = remaining ? ClajType.read(read.buffer) : null;
+    if (read.buffer.hasRemaining()) {
+      withPassword =read.readBoolean();
+      password = read.readShort();
+      type = ClajType.read(read.buffer);
+    } else {
+      withPassword = false;
+      password = -1;
+      type = null;
+    }
   }
 
   @Override
   public void write(ByteBufferOutput write) {
     super.write(write);
+    write.writeBoolean(withPassword);
     write.writeShort(password);
     type.write(write.buffer);
   }

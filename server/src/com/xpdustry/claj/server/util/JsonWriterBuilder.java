@@ -71,8 +71,7 @@ public class JsonWriterBuilder implements BaseJsonWriter, Poolable {
     JsonValue jval;
 
     if (object == null) jval = new JsonValue(ValueType.nullValue);
-    else if (object instanceof Number) {
-        Number number = (Number)object;
+    else if (object instanceof Number number) {
         if (object instanceof Byte) jval = new JsonValue(number.byteValue());
         else if (object instanceof Short) jval = new JsonValue(number.shortValue());
         else if (object instanceof Integer) jval = new JsonValue(number.intValue());
@@ -83,8 +82,7 @@ public class JsonWriterBuilder implements BaseJsonWriter, Poolable {
     } else if (object instanceof CharSequence ||
                object instanceof Character) jval = new JsonValue(object.toString());
     else if (object instanceof Boolean) jval = new JsonValue((boolean)object);
-    else if (object instanceof JsonValue) {
-      JsonValue json = (JsonValue) object;
+    else if (object instanceof JsonValue json) {
       if (json.isBoolean()) jval = new JsonValue(json.asBoolean());
       else if (json.isLong()) jval = new JsonValue(json.asLong());
       else if (json.isDouble()) jval = new JsonValue(json.asDouble());
@@ -183,6 +181,7 @@ public class JsonWriterBuilder implements BaseJsonWriter, Poolable {
       pop();
   }
 
+  @Override
   public void reset() {
     root = current = last = null;
     name = null;

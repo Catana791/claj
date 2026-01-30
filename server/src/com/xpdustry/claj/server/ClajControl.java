@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -21,9 +21,9 @@ package com.xpdustry.claj.server;
 
 import java.util.Scanner;
 
-import arc.net.Connection;
-import arc.struct.IntMap;
-import arc.struct.LongMap;
+import arc.ApplicationListener;
+import arc.Core;
+import arc.Events;
 import arc.util.CommandHandler;
 import arc.util.Log;
 import arc.util.OS;
@@ -33,23 +33,35 @@ import com.xpdustry.claj.common.util.Strings;
 import com.xpdustry.claj.server.plugin.Plugins;
 
 
-public class ClajControl extends CommandHandler {
+public class ClajControl extends CommandHandler implements ApplicationListener {
   private String suggested;
-  
+  private Thread input;
+
   public ClajControl() {
     super("");
   }
-  
+
   /** Start a new daemon thread listening {@link System#in} for commands. */
-  public void start() {
-    Threads.daemon("Server Control", () -> {
-      try (Scanner scanner = new Scanner(System.in)) {
-        while (scanner.hasNext()) {
-          try { handleCommand(scanner.nextLine()); }
-          catch (Throwable e) { Log.err(e); }
+  @Override
+  public void init() {
+    registerCommands();
+
+    Events.run(ClajEvents.ServerLoadedEvent.class, () ->
+      input = Threads.daemon("Server Control", () -> {
+        try (Scanner scanner = new Scanner(System.in)) {
+          while (scanner.hasNext()) {
+            String line = scanner.nextLine();
+            try { Core.app.post(() -> handleCommand(line)); }
+            catch (Throwable e) { Log.err(e); }
+          }
         }
-      }
-    });
+      })
+    );
+  }
+
+  @Override
+  public void dispose() {
+    if (input != null) input.interrupt();
   }
 
   public void handleCommand(String line){
@@ -59,7 +71,7 @@ public class ClajControl extends CommandHandler {
       case unknownCommand:
         int minDst = 0;
         Command closest = null;
-  
+
         for (Command command : getCommandList()) {
           int dst = Strings.levenshtein(command.text, response.runCommand);
           if (dst < 3 && (closest == null || dst < minDst)) {
@@ -67,15 +79,15 @@ public class ClajControl extends CommandHandler {
             closest = command;
           }
         }
-  
+
         if (closest != null) {
           Log.err("Command not found. Did you mean \"@\"?", closest.text);
           suggested = line.replace(response.runCommand, closest.text);
-        } else Log.err("Invalid command. Type @ for help.", "'help'"); 
+        } else Log.err("Invalid command. Type @ for help.", "'help'");
         break;
       case fewArguments:
       case manyArguments:
-        Log.err("Too " + response.type.name().replace("Arguments", "") + " command arguments. Usage: @", 
+        Log.err("Too " + response.type.name().replace("Arguments", "") + " command arguments. Usage: @",
                 response.command.text + " " + response.command.paramText);
         break;
       case valid: suggested = null;
@@ -83,49 +95,55 @@ public class ClajControl extends CommandHandler {
     }
   }
 
+  public long getUsedMemory() {
+    return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  }
+
+  public int getUsedMemoryMB() {
+    return (int)(getUsedMemory() / 1024 / 1024);
+  }
 
   public void registerCommands() {
     register("help", "Display the command list.", args -> {
       Log.info("Commands:");
-      getCommandList().each(c -> 
-        Log.info("&lk|&fr &b&lb" + c.text + (c.paramText.isEmpty() ? "" : " &lc&fi") + c.paramText + 
+      getCommandList().each(c ->
+        Log.info("&lk|&fr &b&lb" + c.text + (c.paramText.isEmpty() ? "" : " &lc&fi") + c.paramText +
                  "&fr - &lw" + c.description));
     });
-    
+
     register("version", "Displays server version info.", args -> {
-      Log.info("CLaJ Version: @", ClajVars.version);
+      Log.info("CLaJ Version: @ (@)", ClajVars.version, ClajVars.version.majorVersion);
       Log.info("Java Version: @", OS.javaVersion);
     });
-    
+
     // Why i added this command? it's useless for this kind of project
     register("gc", "Trigger a garbage collection.", args -> {
-      int pre = (int)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024);
+      int pre = getUsedMemoryMB();
       System.gc();
-      int post = (int)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024);
+      int post = getUsedMemoryMB();
       Log.info("@ MB collected. Memory usage now at @ MB.", pre - post, post);
     });
-    
+
     register("yes", "Run the last suggested incorrect command.", args -> {
       if(suggested != null) handleCommand(suggested);
       else Log.err("There is nothing to say yes to.");
     });
-    
+
     register("exit", "Stop the server.", args -> {
       Log.info("Shutting down CLaJ server.");
-      ClajVars.relay.stop();
+      ClajVars.relay.stop(Core.app::exit);
     });
 
     register("plugins", "[name...]", "Display all loaded plugins or information about a specific one.", args -> {
       if (args.length == 0) {
          if (!ClajVars.plugins.list().isEmpty()) {
           Log.info("Plugins: [total: @]", ClajVars.plugins.list().size);
-          for (Plugins.LoadedPlugin plugin : ClajVars.plugins.list())
-            Log.info("  @ &fi@ " + (plugin.enabled() ? "" : " &lr(" + plugin.state + ")"), 
-                     plugin.meta.displayName, plugin.meta.version);
+          ClajVars.plugins.list().each(p ->
+            Log.info("  @ &fi@" + (p.enabled() ? "" : " &lr(" + p.state + ")"), p.meta.displayName, p.meta.version));
 
         } else Log.info("No plugins found.");
         Log.info("Plugin directory: &fi@", ClajVars.pluginsDirectory.file().getAbsoluteFile().toString());
-        
+
       } else {
         Plugins.LoadedPlugin plugin = ClajVars.plugins.list().find(p -> p.meta.name.equalsIgnoreCase(args[0]));
         if (plugin != null) {
@@ -138,22 +156,22 @@ public class ClajControl extends CommandHandler {
         } else Log.info("No mod with name '@' found.", args[0]);
       }
     });
-    
+
     register("debug", "[on|off]", "Enable/Disable the debug log level.", args -> {
       if (args.length == 0) Log.info("Debug log level is @.", ClajConfig.debug ? "enabled" : "disabled");
-      
+
       else if (Strings.isFalse(args[0])) {
         Log.level = Log.LogLevel.info;
         ClajConfig.debug = false;
         ClajConfig.save();
         Log.info("Debug log level disabled.");
-        
+
       } else if (Strings.isTrue(args[0])) {
         Log.level = Log.LogLevel.debug;
         ClajConfig.debug = true;
         ClajConfig.save();
         Log.info("Debug log level enabled.");
-        
+
       } else Log.err("Invalid argument.");
     });
 
@@ -162,13 +180,13 @@ public class ClajControl extends CommandHandler {
         Log.info("No created rooms.");
         return;
       }
-      
+
       Log.info("Rooms: [total: @]", ClajVars.relay.rooms.size);
-      for (ClajRoom r : new LongMap.Values<>(ClajVars.relay.rooms)) {
-        Log.info("&lk|&fr Room @:", r.idString);
-        Log.info("&lk| |&fr [H] Connection @&fr - @", Strings.conIDToString(r.host), Strings.getIP(r.host));
-        for (Connection c : new IntMap.Values<>(r.clients))
-          Log.info("&lk| |&fr [C] Connection @&fr - @", Strings.conIDToString(c), Strings.getIP(c));
+      for (ClajRoom r : ClajVars.relay.rooms.values()) {
+        Log.info("&lk|&fr Room @:", r.sid);
+        Log.info("&lk| |&fr [H] Connection @&fr - @", r.host.sid, r.host.address);
+        for (ClajConnection c : r.clients.values())
+          Log.info("&lk| |&fr [C] Connection @&fr - @", c.sid, c.address);
         Log.info("&lk|&fr");
       }
     });
@@ -177,7 +195,7 @@ public class ClajControl extends CommandHandler {
       if (args.length == 0) {
         if (ClajConfig.spamLimit == 0) Log.info("Current limit: disabled.");
         else Log.info("Current limit: @ packets per 3 seconds.", ClajConfig.spamLimit);
-        
+
       } else {
         int limit = Strings.parseInt(args[0]);
         if (limit < 0) {
@@ -196,66 +214,66 @@ public class ClajControl extends CommandHandler {
         if (ClajConfig.blacklist.isEmpty()) Log.info("Blacklist is empty.");
         else {
           Log.info("Blacklist:");
-          ClajConfig.blacklist.each(ip -> Log.info("&lk|&fr IP: @", ip));  
+          ClajConfig.blacklist.each(ip -> Log.info("&lk|&fr IP: @", ip));
         }
 
       } else if (args.length == 1) {
         Log.err("Missing IP argument.");
 
       } else if (args[0].equals("add")) {
-        if (ClajConfig.blacklist.addUnique(args[0])) {
+        if (ClajConfig.blacklist.add(args[0])) {
           ClajConfig.save();
           Log.info("IP added to blacklist.");
         } else Log.err("IP already blacklisted.");
-        
+
       } else if (args[0].equals("del")) {
         if (ClajConfig.blacklist.remove(args[0])) {
           ClajConfig.save();
-          Log.info("IP removed from blacklist.");  
+          Log.info("IP removed from blacklist.");
         } else Log.err("IP not blacklisted.");
-        
+
       } else Log.err("Invalid argument. Must be 'add' or 'del'.");
     });
 
     register("warn-deprecated", "[on|off]", "Warn the client if it's CLaJ version is obsolete.", args -> {
-      if (args.length == 0) 
-        Log.info("Warn message when a client using an obsolete CLaJ version: @.", 
+      if (args.length == 0)
+        Log.info("Warn message when a client using an obsolete CLaJ version: @.",
                  ClajConfig.warnDeprecated ? "enabled" : "disabled");
 
       else if (Strings.isFalse(args[0])) {
         ClajConfig.warnDeprecated = false;
         ClajConfig.save();
         Log.info("Warn message disabled.");
-        
+
       } else if (Strings.isTrue(args[0])) {
         ClajConfig.warnDeprecated = true;
         ClajConfig.save();
         Log.info("Warn message enabled.");
-        
+
       } else Log.err("Invalid argument.");
     });
-    
+
     register("warn-closing", "[on|off]", "Warn all rooms when the server is closing.", args -> {
-      if (args.length == 0) 
-        Log.info("Warn message when closing the server: @.", 
+      if (args.length == 0)
+        Log.info("Warn message when closing the server: @.",
                  ClajConfig.warnClosing ? "enabled" : "disabled");
 
       else if (Strings.isFalse(args[0])) {
         ClajConfig.warnClosing = false;
         ClajConfig.save();
         Log.info("Warn message disabled.");
-        
+
       } else if (Strings.isTrue(args[0])) {
         ClajConfig.warnClosing = true;
         ClajConfig.save();
         Log.info("Warn message enabled.");
-        
+
       } else Log.err("Invalid argument.");
     });
-    
+
     register("say", "<room|all> <text...>", "Send a message to a room or all rooms.", args -> {
       if (args[0].equals("all")) {
-        for (ClajRoom r : new LongMap.Values<>(ClajVars.relay.rooms)) r.message(args[1]);
+        for (ClajRoom r : ClajVars.relay.rooms.values()) r.message(args[1]);
         Log.info("Message sent to all rooms.");
         return;
       }
@@ -264,21 +282,21 @@ public class ClajControl extends CommandHandler {
       if (room != null) {
         room.message(args[1]);
         Log.info("Message sent to room @.", args[0]);
-      } else Log.err("Room @ not found.", args[0]);     
+      } else Log.err("Room @ not found.", args[0]);
     });
-    
+
     register("alert", "<room|all> <text...>", "Send a popup message to the host of a room or all rooms.", args -> {
       if (args[0].equals("all")) {
-        for (ClajRoom r : new LongMap.Values<>(ClajVars.relay.rooms)) r.popup(args[1]);
+        for (ClajRoom r : ClajVars.relay.rooms.values()) r.popup(args[1]);
         Log.info("Popup sent to all room hosts.");
         return;
       }
-      
+
       ClajRoom room = ClajVars.relay.get(args[0]);
       if (room != null) {
         room.popup(args[1]);
         Log.info("Popup sent to the host of room @.", args[0]);
-      } else Log.err("Room @ not found.", args[0]);  
+      } else Log.err("Room @ not found.", args[0]);
     });
   }
 }

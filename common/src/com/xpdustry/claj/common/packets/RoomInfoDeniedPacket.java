@@ -20,4 +20,6 @@
 package com.xpdustry.claj.common.packets;
 
 
-public class RoomInfoDeniedPacket implements Packet {}
+public class RoomInfoDeniedPacket implements Packet {
+  public static final RoomInfoDeniedPacket instance = new RoomInfoDeniedPacket();
+}

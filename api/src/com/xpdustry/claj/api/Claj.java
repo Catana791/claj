@@ -101,7 +101,7 @@ public class Claj {
   }
 
   public void joinRoom(ClajLink link, Runnable success, Cons<RejectReason> reject, Cons<Exception> failed) {
-    joinRoom(link, ClajPinger.NO_PASSWORD, success, reject, failed);
+    pingers.joinRoom(link, success, reject, failed);
   }
 
   public void joinRoom(ClajLink link, short password, Runnable success, Cons<RejectReason> reject,

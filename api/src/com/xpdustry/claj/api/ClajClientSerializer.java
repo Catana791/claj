@@ -32,7 +32,7 @@ import com.xpdustry.claj.common.net.FrameworkSerializer;
 import com.xpdustry.claj.common.packets.Packet;
 
 
-public class ClajSerializer implements NetSerializer, FrameworkSerializer {
+public class ClajClientSerializer implements NetSerializer, FrameworkSerializer {
   //maybe faster without ThreadLocal?
   protected final ByteBufferInput read = new ByteBufferInput();
   protected final ByteBufferOutput write = new ByteBufferOutput();

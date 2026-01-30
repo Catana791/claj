@@ -112,56 +112,56 @@ public class Structs extends arc.util.Structs {
   public static <T> int max(Iterable<T> list, Intf<T> intifier) {
     boolean first = true;
     int index = 0;
-    
+
     for (T i : list) {
       int s = intifier.get(i);
       if (first) index = s;
       else if (s > index) index = s;
       first = false;
     }
-    
+
     return index;
   }
-  
+
   public static <T> int max(T[] list, Intf<T> intifier) {
     boolean first = true;
     int index = 0;
-    
+
     for (T i : list) {
       int s = intifier.get(i);
       if (first) index = s;
       else if (s > index) index = s;
       first = false;
     }
-    
+
     return index;
   }
-  
+
   public static <T> int min(Iterable<T> list, Intf<T> intifier) {
     boolean first = true;
     int index = 0;
-    
+
     for (T i : list) {
       int s = intifier.get(i);
       if (first) index = s;
       else if (s < index) index = s;
       first = false;
     }
-    
+
     return index;
   }
-  
+
   public static <T> int min(T[] list, Intf<T> intifier) {
     boolean first = true;
     int index = 0;
-    
+
     for (T i : list) {
       int s = intifier.get(i);
       if (first) index = s;
       else if (s < index) index = s;
       first = false;
     }
-    
+
     return index;
   }
 }

@@ -31,7 +31,7 @@ public class StreamChunk implements StreamPacket {
   @Override
   public void read(ByteBufferInput in) {
     id = in.readInt();
-    data = new byte[in.readShort()];
+    data = new byte[in.readUnsignedShort()];
     in.readFully(data);
   }
 

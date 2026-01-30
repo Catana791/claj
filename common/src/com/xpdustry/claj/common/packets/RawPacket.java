@@ -17,12 +17,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.server.net;
+package com.xpdustry.claj.common.packets;
 
-import arc.net.NetListener;
+import arc.util.io.ByteBufferInput;
+import arc.util.io.ByteBufferOutput;
 
 
-public class Room implements NetListener {
+public class RawPacket implements Packet {
+  public byte[] data = {};
 
-  public Room() {}
+  public void read(ByteBufferInput read) {
+    data = new byte[read.buffer.remaining()];
+    read.readFully(data);
+  }
+
+  public void write(ByteBufferOutput write) {
+    write.write(data);
+  }
 }

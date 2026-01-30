@@ -51,10 +51,10 @@ public interface ClajProvider {
    */
   ClajType getType();
   /**
-   * The implementation's major version, used to request a room creation. <br>
+   * The CLaJ version, used to request a room creation. <br>
    * Must be equals to the server.
    */
-  int getVersion();
+  ClajVersion getVersion();
 
   /** Listener added to all virtual connections. Can be {@code null}. */
   default NetListener getConnectionListener() { return null; }

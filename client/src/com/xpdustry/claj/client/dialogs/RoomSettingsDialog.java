@@ -194,7 +194,11 @@ public class RoomSettingsDialog extends BaseDialog {
     String limit = Vars.netServer.admins.getPlayerLimit() <= 0 ? "" : "/" + Vars.netServer.admins.getPlayerLimit();
     players.setText(Core.settings.getInt("totalPlayers", Groups.player.size()) + limit);
     playersClaj.setText((proxy instanceof MindustryClajProxy mp ? mp.getMindustryConnectionsSize() : "??") + limit);
-    ping.setText(Iconc.chartBar + (proxy.isConnected() ? ' ' + proxy.getReturnTripTime() + "ms" : " ---ms"));
+    if (proxy.isConnected()) {
+      Claj.get().proxies.get().updateReturnTripTime();
+      // the correct ping will be displayed the next time the dialog is open
+      ping.setText(Iconc.chartBar + " " + proxy.getReturnTripTime() + "ms");
+    } else ping.setText(Iconc.chartBar + " ---ms");
   }
 
   public void save() {

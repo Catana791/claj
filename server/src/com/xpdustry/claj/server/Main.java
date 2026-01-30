@@ -1,103 +1,79 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 package com.xpdustry.claj.server;
 
-import java.util.jar.Manifest;
-
+import arc.ApplicationListener;
 import arc.Events;
+import arc.backend.headless.HeadlessApplication;
 import arc.util.Log;
-import arc.util.OS;
 
-import com.xpdustry.claj.server.plugin.Plugin;
+import com.xpdustry.claj.common.ClajPackets;
+import com.xpdustry.claj.common.status.ClajVersion;
 import com.xpdustry.claj.server.plugin.Plugins;
+import com.xpdustry.claj.server.util.Autosaver;
 
 
-public class Main {
+public class Main implements ApplicationListener {
+  public static String[] args;
+  public static HeadlessApplication app;
+  public static boolean isLoading;
+
   public static void main(String[] args) {
-    // Set loggers and formatter
+    isLoading = true;
+    Main.args = args;
+
     ClajVars.initLogger();
-    // Load environment things
     if (!loadEnv(args)) System.exit(1);
-    // Init server
-    init();
-    // Start server
-    run();
-  }
-  
-  public static void init() {
-    try {
-      // Init vars
-      ClajVars.init();
 
-      // Register commands
-      ClajVars.control.registerCommands();
-      ClajVars.plugins.eachClass(p -> p.registerCommands(ClajVars.control));
-      
-      // Check loaded plugins
-      if (!ClajVars.plugins.orderedPlugins().isEmpty())
-        Log.info("@ plugins loaded.", ClajVars.plugins.orderedPlugins().size);
-      int unsupported = ClajVars.plugins.list().count(l -> !l.enabled());
-      if (unsupported > 0) {
-        Log.err("There were errors loading @ plugin" + (unsupported > 1 ? "s" : "") + ":", unsupported);
-        for (Plugins.LoadedPlugin mod : ClajVars.plugins.list().select(l -> !l.enabled()))
-            Log.err("- @ &ly(" + mod.state + ")", mod.meta.name);
+    app = new HeadlessApplication(new Main(), t -> {
+      //TODO: crash handler
+      if (ClajVars.relay != null) ClajVars.relay.dispose();
+      ClajConfig.save();
+      if (isLoading) Log.err("Failed to load server", t);
+      else {
+        Log.err(t);
+        Log.err("Server closed with error(s).");
       }
+      System.exit(1);
+    });
+  }
 
-      // Finish plugins loading
-      ClajVars.plugins.eachClass(Plugin::init);
-      // Bind port
-      ClajVars.relay.bind(ClajVars.port, ClajVars.port);
-      // Start command handler
-      ClajVars.control.start();
-      
-      // Loading finished, fire an event
+  @Override
+  public void init() {
+    ClajVars.autosave = new Autosaver();
+    ClajConfig.load();
+    Log.level = ClajConfig.debug ? Log.LogLevel.debug : Log.LogLevel.info; // set log level
+    ClajPackets.init();
+
+    app.addListener(ClajVars.autosave);
+    app.addListener(ClajVars.control = new ClajControl());
+    app.addListener(ClajVars.plugins = new Plugins(ClajVars.pluginsDirectory, ClajVars.control));
+    app.addListener(ClajVars.relay = new ClajRelay(ClajVars.networkSpeed));
+
+    app.post(() -> {
+      isLoading = false;
       Events.fire(new ClajEvents.ServerLoadedEvent());
       Log.info("Server loaded and hosted on port @. Type @ for help.", ClajVars.port, "'help'");
-      
-    } catch (Throwable t) {
-      Log.err("Failed to load server", t);
-      ClajVars.loop.stop(true);
-      System.exit(1);
-    }
+    });
   }
-  
-  public static void run() {
-    if (ClajVars.relay == null) throw new IllegalStateException("server not initialized");
-    
-    boolean error = false;
-    try { 
-      ClajVars.relay.run(); 
-    } catch (Throwable t) { 
-      Log.err(t); 
-      error = true;
-    } finally {
-      ClajVars.loop.stop(true);
-      ClajVars.relay.close();
-      ClajConfig.save();
-      if (error) {
-        Log.err("Server closed with error(s).");
-        System.exit(1);
-      } else Log.info("Server closed.");
-    }
-  }
-  
+
   public static boolean loadEnv(String[] args) {
     // Parse server port
     if (args.length == 0) {
@@ -110,24 +86,30 @@ public class Main {
       return false;
     }
     ClajVars.port = port;
-    
+
     // Get the server version from manifest or command line property
     String version = null;
-    try { 
-      version = new Manifest(Main.class.getResourceAsStream("/META-INF/MANIFEST.MF"))
-                                       .getMainAttributes().getValue("Claj-Version");
+    try {
+      version = new java.util.jar.Manifest(Main.class.getResourceAsStream("/META-INF/MANIFEST.MF"))
+                                 .getMainAttributes().getValue("Claj-Version");
     } catch (Exception e) {
       Log.err("Unable to locate manifest properties", e);
       return false;
     }
     // Fallback to argument property
-    String versionOverride = OS.prop("Claj-Version");
+    String versionOverride = System.getProperty("Claj-Version");
     if (version == null && versionOverride == null) {
       Log.err("The 'Claj-Version' property is missing in the jar manifest.");
       return false;
     }
-    
-    ClajVars.version = version == null ? versionOverride : version;
+
+    try {
+      ClajVars.version = new ClajVersion(version == null ? versionOverride : version);
+    } catch (Exception e) {
+      Log.err("Invalid CLaJ version", e);
+      return false;
+    }
+
     return true;
   }
 }

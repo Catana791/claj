@@ -18,8 +18,8 @@ public class JarLoader {
           //try to load own class first
           try { loadedClass = findClass(name); }
           //use parent if not found
-          catch (ClassNotFoundException e) { 
-            if (parent != null) return parent.loadClass(name); 
+          catch (ClassNotFoundException e) {
+            if (parent != null) return parent.loadClass(name);
             throw e;
           }
         }

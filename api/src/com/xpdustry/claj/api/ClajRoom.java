@@ -19,6 +19,7 @@
 
 package com.xpdustry.claj.api;
 
+import com.xpdustry.claj.common.status.ClajType;
 
 public class ClajRoom<T> {
   public final long roomId;
@@ -28,16 +29,19 @@ public class ClajRoom<T> {
   public T state;
   /** The link to the room. */
   public ClajLink link;
+  /** Room implementation type. */
+  public ClajType type;
 
   public ClajRoom(long roomId) {
     this.roomId = roomId;
   }
 
-  public ClajRoom(long roomId, boolean isPublic, boolean isProtected, T state, ClajLink link) {
+  public ClajRoom(long roomId, boolean isPublic, boolean isProtected, T state, ClajLink link, ClajType type) {
     this.roomId = roomId;
     this.isPublic = isPublic;
     this.isProtected = isProtected;
     this.state = state;
     this.link = link;
+    this.type = type;
   }
 }

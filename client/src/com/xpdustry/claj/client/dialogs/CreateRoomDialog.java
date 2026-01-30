@@ -140,13 +140,14 @@ public class CreateRoomDialog extends BaseDialog {
   }
 
   public void refreshAll() {
-    if (Claj.get().proxies.get().isConnected())
-      Claj.get().proxies.get().updateReturnTripTime();
-    refreshCustom();
-    refreshOnline();
+    Claj.get().stopPingers(); // cancel previous pings
+    refreshCustom(false);
+    refreshOnline(false);
   }
 
-  public void refreshCustom() {
+  public void refreshCustom() { refreshCustom(true); }
+  public void refreshCustom(boolean cancelPrevious) {
+    if (cancelPrevious) Claj.get().stopPingers();
     selected = null;
     ClajServers.loadCustom();
     setupServers(ClajServers.custom, custom,
@@ -155,21 +156,22 @@ public class CreateRoomDialog extends BaseDialog {
         ClajServers.custom.setKey(index, n);
         ClajServers.custom.setValue(index, a);
         ClajServers.saveCustom();
-        refreshCustom();
+        refreshCustom(false);
       }),
       s -> Vars.ui.showConfirm("@confirm", "@server.delete", () -> {
         ClajServers.custom.removeKey(s.name);
         ClajServers.saveCustom();
-        refreshCustom();
+        refreshCustom(false);
       })
     );
   }
 
-  public void refreshOnline() {
+  public void refreshOnline() { refreshOnline(true); }
+  public void refreshOnline(boolean cancelPrevious) {
     if (refreshingOnline) return; // Avoid to re-trigger a refresh while refreshing
+    if (cancelPrevious) Claj.get().stopPingers();
     refreshingOnline = true;
     selected = null;
-    Claj.get().stopPingers(); // cancel previous pings
 
     online.clear();
     online.button(b ->
@@ -258,8 +260,8 @@ public class CreateRoomDialog extends BaseDialog {
     dest.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(2).color(Pal.accent).left();
 
     Claj.get().pingHost(server.address, server.port, s -> {
-      server.compatible = s.version == Claj.get().provider.getVersion();
-      server.outdated = s.version < Claj.get().provider.getVersion();
+      server.compatible = s.version == Claj.get().provider.getVersion().majorVersion;
+      server.outdated = s.version < Claj.get().provider.getVersion().majorVersion;
 
       dest.clear();
       if (server.compatible) dest.image(Icon.ok, Color.green).padRight(7).left();

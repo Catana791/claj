@@ -21,10 +21,7 @@ package com.xpdustry.claj.common.net;
 
 import arc.func.Cons;
 import arc.func.Cons2;
-import arc.net.Connection;
-import arc.net.DcReason;
-import arc.net.EndPoint;
-import arc.net.NetListener;
+import arc.net.*;
 import arc.struct.ObjectMap;
 import arc.util.Log;
 
@@ -32,40 +29,55 @@ import com.xpdustry.claj.common.ClajPackets.*;
 import com.xpdustry.claj.common.net.stream.StreamPacket;
 import com.xpdustry.claj.common.net.stream.StreamReceiver;
 import com.xpdustry.claj.common.packets.Packet;
-import com.xpdustry.claj.common.util.Strings;
+import com.xpdustry.claj.common.util.AddressUtil;
 
 
 /** A server listener that can delegate packet decoding and reception to the main app. */
-public class ServerReceiver {
+public class ServerReceiver implements NetListener {
   protected final ObjectMap<Class<?>, Cons2<Connection, ?>> listeners = new ObjectMap<>();
   protected Cons<Runnable> delegator;
+  protected NetListenerFilter filter;
 
   /** Receive will not be delegated. */
-  public ServerReceiver(EndPoint server) { this(server, null); }
-  public ServerReceiver(EndPoint server, Cons<Runnable> delegator) {
+  public ServerReceiver(EndPoint server) { this(server, null, null); }
+  public ServerReceiver(EndPoint server, Cons<Runnable> delegator) { this(server, null, null); }
+  public ServerReceiver(EndPoint server, Cons<Runnable> delegator, NetListenerFilter filter) {
     this.delegator = delegator;
+    this.filter = filter;
+    server.addListener(this);
+  }
 
-    server.addListener(new NetListener() {
-      @Override
-      public void connected(Connection connection) {
-        Connect packet = new Connect();
-        packet.address = Strings.getIP(connection);
-        delegateReceive(connection, packet);
-      }
+  public void setFilter(NetListenerFilter filter) {
+    this.filter = filter;
+  }
 
-      @Override
-      public void disconnected(Connection connection, DcReason reason) {
-        Disconnect packet = new Disconnect();
-        packet.reason = reason;
-        delegateReceive(connection, packet);
-      }
+  @Override
+  public void connected(Connection connection) {
+    if (filter != null && !filter.connected(connection)) return;
+    Connect packet = new Connect();
+    packet.address = AddressUtil.get(connection);
+    delegateReceive(connection, packet);
+  }
 
-      @Override
-      public void received(Connection connection, Object object) {
-        if (!(object instanceof Packet packet)) return;
-        delegateReceive(connection, packet);
-      }
-    });
+  @Override
+  public void disconnected(Connection connection, DcReason reason) {
+    if (filter != null && !filter.disconnected(connection, reason)) return;
+    Disconnect packet = new Disconnect();
+    packet.reason = reason;
+    delegateReceive(connection, packet);
+  }
+
+  @Override
+  public void received(Connection connection, Object object) {
+    if (filter != null && !filter.received(connection, object)) return;
+    if (!(object instanceof Packet packet)) return;
+    delegateReceive(connection, packet);
+  }
+
+  @Override
+  public void idle(Connection connection) {
+    if (filter != null && !filter.idle(connection)) return;
+    delegateReceive(connection, Idle.instance);
   }
 
   /** Whether packet reception is delegated to the main thread or not. */

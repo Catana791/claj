@@ -85,7 +85,7 @@ public class JsonSettings implements Autosaver.Saveable {
                                             (extension.isEmpty() ? "" : '.' + extension));
     } else this.backupFile = backupFile;
     this.plainJson = plainJson;
-    this.reader = plainJson ? new JsonReader() : new UBJsonReader();
+    reader = plainJson ? new JsonReader() : new UBJsonReader();
     this.backuped = backuped;
     this.compressed = compressed;
     setJson(new Json());
@@ -200,7 +200,7 @@ public class JsonSettings implements Autosaver.Saveable {
       if (!plainJson) {
         //read the first few bytes to check if it is compressed.
         byte[] header = new byte[2];
-        file.readBytes(header, 0, 2);
+        file.readBytes(header, 0, header.length);
         compressed = header[0] == (byte)0x78 && (header[1] == (byte)0x01 || header[1] == (byte)0x5E ||
                                                  header[1] == (byte)0x9c || header[1] == (byte)0xda);
       }
@@ -236,7 +236,9 @@ public class JsonSettings implements Autosaver.Saveable {
         }
 
       } else {
-        try (OutputStream out = compressed ? new FastDeflaterOutputStream(file.write(false, 8192)) : file.write(false, 8192)) {
+        try (OutputStream write = file.write(false, 8192);
+             OutputStream out = compressed ? new FastDeflaterOutputStream(write) : write) {
+          // place here, like that json doesn't become valid when an error occur
           UBJsonWriter writer = new UBJsonWriter(out);
 
           writer.object();

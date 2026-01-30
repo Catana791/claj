@@ -1,231 +1,311 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 package com.xpdustry.claj.server;
 
+import java.nio.ByteBuffer;
+
 import arc.net.Connection;
 import arc.net.DcReason;
 import arc.net.NetListener;
 import arc.struct.IntMap;
 
-import com.xpdustry.claj.common.ClajPackets.*;
 import com.xpdustry.claj.common.packets.*;
-import com.xpdustry.claj.common.util.AddressHasher;
+import com.xpdustry.claj.common.status.*;
+import com.xpdustry.claj.common.util.AddressUtil;
 import com.xpdustry.claj.common.util.Strings;
 import com.xpdustry.claj.server.util.NetworkSpeed;
 
 
 public class ClajRoom implements NetListener {
   protected boolean closed;
-  
+
   /** The room id. */
   public final long id;
-  /** 
+  /**
    * The room id encoded in an url-safe base64 string.
    * @see com.xpdustry.claj.api.ClajLink
    */
-  public final String idString;
+  public final String sid;
   /** The host connection of this room. */
-  public final Connection host;
+  public final ClajConnection host;
   /** Using IntMap instead of Seq for faster search. */
-  public final IntMap<Connection> clients = new IntMap<>();
+  public final IntMap<ClajConnection> clients = new IntMap<>();
   /** For debugging, to know how many packets were transferred from a client to a host, and vice versa. */
   public final NetworkSpeed transferredPackets = new NetworkSpeed(8);
 
-  public ClajRoom(long id, Connection host) {
+  /** Whether the room will be added is public list or not. */
+  public boolean isPublic;
+  /** Whether the room needs a password or not to join it. */
+  public boolean isProtected;
+  /** The room password */
+  public short password;
+  /** De-serialized room state, only present if the right decoder is present. */
+  public Object state;
+  /** State of the room as raw data. {@code null} if no state was received. */
+  public ByteBuffer rawState;
+  /** Time of the last received room state. */
+  public long lastReceivedState;
+  /** Room implementation type. */
+  public final ClajType type;
+
+  public ClajRoom(long id, ClajConnection host, ClajType type) {
     this.id = id;
-    this.idString = Strings.longToBase64(id);
+    this.sid = Strings.longToBase64(id);
     this.host = host;
+    this.type = type;
   }
 
-  /** Alert the host that a new client is coming */
+  /** Alerts the host that a new client is coming */
   @Override
   public void connected(Connection connection) {
-    if (closed) return;
-    
-    // Assume the host is still connected
-    ConnectionJoinPacket p = new ConnectionJoinPacket();
-    p.conID = connection.getID();
-    p.roomId = id;
-    if (connection.getRemoteAddressTCP() != null) {
-      p.addressHash = AddressHasher.hash(connection.getRemoteAddressTCP().getAddress());
-    }
-    host.sendTCP(p);
-
-    clients.put(connection.getID(), connection);
+    if (connection.getArbitraryData() instanceof ClajConnection con) connected(con);
   }
 
-  /** Alert the host that a client disconnected. This doesn't close the connection. */
+  /** Alerts the host of the client arrival and notifies the connection of acceptance. */
+  public void connected(ClajConnection connection) {
+    if (closed) return;
+
+    // Notify host
+    ConnectionJoinPacket p = new ConnectionJoinPacket();
+    p.conID = connection.id;
+    p.roomId = id;
+    p.addressHash = AddressUtil.hash(connection.connection);
+    host.send(p); // Assumes the host is still connected
+
+    // Notify client
+    RoomJoinAcceptedPacket a = new RoomJoinAcceptedPacket();
+    a.roomId = id;
+    connection.send(a);
+
+    clients.put(connection.id, connection);
+  }
+
+  /** Alerts the host that a client disconnected. This doesn't close the connection. */
+  public void disconnected(ClajConnection connection, DcReason reason) {
+    disconnected(connection.connection, reason);
+  }
+
+  /** Alerts the host that a client disconnected. This doesn't close the connection. */
   @Override
   public void disconnected(Connection connection, DcReason reason) {
     if (closed) return;
-    
-    if (connection == host) {
+
+    if (isHost(connection)) {
       close();
       return;
-      
+
     } else if (host.isConnected()) {
       ConnectionClosedPacket p = new ConnectionClosedPacket();
       p.conID = connection.getID();
       p.reason = reason;
-      host.sendTCP(p);
+      host.send(p);
     }
 
     clients.remove(connection.getID());
   }
-  
-  /** Doesn't notify the room host about a disconnected client */
+
+  /** Doesn't notify the room host about a disconnected client. */
+  public void disconnectedQuietly(ClajConnection connection, DcReason reason) {
+    disconnectedQuietly(connection.connection, reason);
+  }
+
+  /** Doesn't notify the room host about a disconnected client. */
   public void disconnectedQuietly(Connection connection, DcReason reason) {
     if (closed) return;
-    
-    if (connection == host) close();
+
+    if (isHost(connection)) close();
     else clients.remove(connection.getID());
   }
-  
-  /** 
-   * Wrap and re-send the packet to the host, if it come from a connection, 
-   * else un-wrap and re-send the packet to the specified connection. <br>
-   * Only {@link ClajPackets.ConnectionPacketWrapPacket} and {@link ByteBuffer} are allowed.
+
+  /**
+   * Wraps and re-sends the packet to the host, if it come from a connection. <br>
+   * Or un-wraps and re-sends the packet to the specified connection.
+   * <p>
+   * Only {@link ConnectionPacketWrapPacket} and {@link RawPacket} are allowed.
    */
   @Override
   public void received(Connection connection, Object object) {
-    if (closed) return;
-    
-    if (connection == host) {
-      // Only claj packets are allowed in the host's connection
-      // and can only be ConnectionPacketWrapPacket at this point.
-      if (!(object instanceof ConnectionPacketWrapPacket wrap)) return;
+    if (isHost(connection)) {
+      if (object instanceof ConnectionPacketWrapPacket wrap)
+        received(connection, wrap);
 
-      int conID = wrap.conID;
-      Connection con = clients.get(conID);
-      
-      if (con != null && con.isConnected()) {
-        if (wrap.isTCP) con.sendTCP(wrap.raw);
-        else con.sendUDP(wrap.raw);
-        transferredPackets.addUploadMark();
-
-      // Notify that this connection doesn't exist, this case normally never happen
-      } else if (host.isConnected()) { 
-        ConnectionClosedPacket p = new ConnectionClosedPacket();
-        p.conID = conID;
-        p.reason = DcReason.error;
-        host.sendTCP(p);
-      }
-      
-    } else if (host.isConnected() && clients.containsKey(connection.getID())) {
-      // Only raw buffers are allowed here.
-      // We never send claj packets to anyone other than the room host, framework packets are ignored
-      // and mindustry packets are saved as raw buffer.
-      if (!(object instanceof RawPacket raw)) return;
-      
-      ConnectionPacketWrapPacket p = new ConnectionPacketWrapPacket();
-      p.conID = connection.getID();
-      p.raw = raw;
-      host.sendTCP(p);
-      transferredPackets.addDownloadMark();
+    } else if (clients.containsKey(connection.getID())) {
+      if (object instanceof RawPacket raw)
+        received(connection, raw);
     }
   }
-  
-  /** Notify the host of an idle connection. */
+
+  /**
+   * Unwraps the packet and sends it to the corresponding connection. <br>
+   * This will notify the host if the connection is not found.
+   */
+  public void received(Connection connection, ConnectionPacketWrapPacket wrap) {
+    if (closed || !isHost(connection)) return;
+    ClajConnection con = clients.get(wrap.conID);
+
+    if (con != null && con.isConnected()) {
+      con.send(wrap.raw, wrap.isTCP);
+      transferredPackets.addUploadMark();
+
+    // Notify that this connection doesn't exist, this case normally never happen
+    } else if (host.isConnected()) {
+      ConnectionClosedPacket p = new ConnectionClosedPacket();
+      p.conID = wrap.conID;
+      p.reason = DcReason.error;
+      host.send(p);
+    }
+  }
+
+  /**
+   * We never send claj packets to anyone other than the room host,
+   * framework packets are ignored and mindustry packets are saved as raw buffer.
+   */
+  public void received(Connection connection, RawPacket raw) {
+    if (closed || !host.isConnected() || !clients.containsKey(connection.getID())) return;
+
+    ConnectionPacketWrapPacket p = new ConnectionPacketWrapPacket();
+    p.conID = connection.getID();
+    p.raw = raw;
+    host.send(p);
+    transferredPackets.addDownloadMark();
+  }
+
+  /** Notifies the host of an idle connection. */
+  public void idle(ClajConnection connection) {
+    idle(connection.connection);
+  }
+
+  /** Notifies the host of an idle connection. */
   @Override
   public void idle(Connection connection) {
     if (closed) return;
 
-    if (connection == host) {
+    if (isHost(connection)) {
       // Ignore if this is the room host
-      
+
     } else if (host.isConnected() && clients.containsKey(connection.getID())) {
       ConnectionIdlingPacket p = new ConnectionIdlingPacket();
       p.conID = connection.getID();
-      host.sendTCP(p);
+      host.send(p);
     }
   }
-  
-  /** Notify the room id to the host. Must be called once. */
+
+  /** Notifies the room id to the host. Must be called once. */
   public void create() {
     if (closed) return;
-    
+
     // Assume the host is still connected
     RoomLinkPacket p = new RoomLinkPacket();
     p.roomId = id;
-    host.sendTCP(p);
+    host.send(p);
   }
-  
-  /** @return whether the room is closed or not */
+
+  /** @return whether the room is closed or not. */
   public boolean isClosed() {
     return closed;
   }
-  
+
   public void close() {
     close(CloseReason.closed);
   }
-  
-  /** 
-   * Closes the room and disconnects the host and all clients. 
+
+  /**
+   * Closes the room and disconnects the host and all clients. <br>
    * The room object cannot be used anymore after this.
    */
   public void close(CloseReason reason) {
     if (closed) return;
     closed = true; // close before kicking connections, to avoid receiving events
-    
+
     // Alert the close reason to the host
     RoomClosedPacket p = new RoomClosedPacket();
     p.reason = reason;
-    host.sendTCP(p);
-    
-    host.close(DcReason.closed);
-    for (Connection c : clients.values()) c.close(DcReason.closed);
+    host.send(p);
+
+    host.close();
+    for (ClajConnection c : clients.values()) c.close();
     clients.clear();
   }
-  
-  /** Checks if the connection is the room host or one of his client */
-  public boolean contains(Connection con) {
-    if (closed || con == null) return false;
-    if (con == host) return true;
-    return clients.containsKey(con.getID());
-  }
-  
-  /** Send a message to the host and clients. */
+
+  /** Sends a message to the host and clients. */
   public void message(String text) {
     if (closed) return;
-    
+
     // Just send to host, it will re-send it properly to all clients
     ClajTextMessagePacket p = new ClajTextMessagePacket();
     p.message = text;
-    host.sendTCP(p);
+    host.send(p);
   }
-  
-  /** Send a message the host and clients. Will be translated by the room host. */
+
+  /** Sends a message the host and clients. Will be translated by the room host. */
   public void message(MessageType message) {
     if (closed) return;
-    
+
     ClajMessagePacket p = new ClajMessagePacket();
     p.message = message;
-    host.sendTCP(p);
+    host.send(p);
   }
-  
-  /** Send a popup to the room host. */
+
+  /** Sends a popup to the room host. */
   public void popup(String text) {
     if (closed) return;
-    
+
     ClajPopupPacket p = new ClajPopupPacket();
     p.message = text;
-    host.sendTCP(p);
+    host.send(p);
+  }
+
+  public void setConfiguration(boolean isPublic, boolean isProtected, short password) {
+    this.isPublic = isPublic;
+    this.isProtected = isProtected;
+    this.password = password;
+  }
+
+  public void requestState() {
+    if (closed) return;
+
+    host.send(RoomStateRequestPacket.instance);
+  }
+
+  public void setState(ByteBuffer rawState) {
+    this.rawState = rawState;
+    this.state = null; //TODO: add public decoder list
+  }
+
+  /** @return whether specified connection is the room host or not. */
+  public boolean isHost(Connection con) {
+    return con == host.connection;
+  }
+
+  /** @return whether specified connection is the room host or not. */
+  public boolean isHost(ClajConnection con) {
+    return con == host;
+  }
+
+  /** @return whether the connection is the room host or one of his client. */
+  public boolean contains(ClajConnection con) {
+    return contains(con.connection);
+  }
+
+  /** @return whether the connection is the room host or one of his client. */
+  public boolean contains(Connection con) {
+    return !closed && con != null && (isHost(con) || clients.containsKey(con.getID()));
   }
 }

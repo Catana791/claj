@@ -48,14 +48,8 @@ public class MindustryClajProvider implements ClajProvider {
   public static final Server mindustryServer;
   public static final NetListener mindustryServerDispatcher;
   public static final PacketSerializer mindustrySerializer;
-  /**
-   * CLaJ versions are always in format: {@code protocolType.majorVersion.minorVersion}. <br>
-   * Only {@code majorVersion} is important. <br>
-   * {@code protocolType} is discarded, as it's always {@code 2} (for this project).
-   * Different CLaJ types must not be compatible with each others. <br>
-   * As well as {@code minorVersion}, because it's represents changes that doesn't affect the protocol itself.
-   */
-  public static final int majorVersion;
+  /** Stored in mod file. */
+  public static final ClajVersion clajVersion;
   /** CLaJ type is {@code "Mindustry"} for this implementation. */
   public static final ClajType implType;
 
@@ -66,7 +60,7 @@ public class MindustryClajProvider implements ClajProvider {
     mindustryServer = Reflect.get(mindustryProvider, "server");
     mindustryServerDispatcher = Reflect.get(mindustryServer, "dispatchListener");
     mindustrySerializer = new PacketSerializer();
-    majorVersion = Integer.parseInt(Main.getMeta().version.split("\\.")[1]);
+    clajVersion = new ClajVersion(Main.getMeta().version);
     implType = new ClajType("Mindustry");
   }
 
@@ -91,8 +85,8 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   @Override
-  public int getVersion() {
-    return majorVersion;
+  public ClajVersion getVersion() {
+    return clajVersion;
   }
 
   @Override

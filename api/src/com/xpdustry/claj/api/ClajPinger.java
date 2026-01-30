@@ -217,7 +217,8 @@ public class ClajPinger extends Client {
       roomList.add(new ClajRoom<>(
         rooms[i], true, isProtected[i],
         provider.readRoomState(rooms[i], type, states[i]),
-        new ClajLink(connectHost, connectPort, rooms[i])
+        new ClajLink(connectHost, connectPort, rooms[i]),
+        type
       ));
     }
 
@@ -272,7 +273,8 @@ public class ClajPinger extends Client {
       ClajRoom<?> room = new ClajRoom<>(
         roomId, true, isProtected,
         provider.readRoomState(roomId, type, state),
-        new ClajLink(connectHost, connectPort, roomId)
+        new ClajLink(connectHost, connectPort, roomId),
+        type
       );
       postTask(infoSuccess, room);
     }
@@ -340,11 +342,16 @@ public class ClajPinger extends Client {
 
   public void joinRoom(String host, int port, long roomId, Runnable success, Cons<RejectReason> reject,
                        Cons<Exception> failed) {
-    joinRoom(host, port, roomId, NO_PASSWORD, success, reject, failed);
+    joinRoom(host, port, roomId, false, NO_PASSWORD, success, reject, failed);
   }
 
   public void joinRoom(String host, int port, long roomId, short password, Runnable success,
                        Cons<RejectReason> reject, Cons<Exception> failed) {
+    joinRoom(host, port, roomId, true, password, success, reject, failed);
+  }
+
+  protected void joinRoom(String host, int port, long roomId, boolean withPassword, short password, Runnable success,
+                          Cons<RejectReason> reject, Cons<Exception> failed) {
     if (!canceling) {
       try { connect(host, port); }
       catch (Exception e) {
@@ -357,7 +364,7 @@ public class ClajPinger extends Client {
     requestedRoom = roomId;
     joining = true;
     if (canceling) cancel();
-    else requestRoomJoin(roomId, password);
+    else requestRoomJoin(roomId, withPassword, password);
   }
 
   public <T> void requestRoomInfo(String host, int port, long roomId, Cons<ClajRoom<T>> info, Runnable notFound,
@@ -393,9 +400,10 @@ public class ClajPinger extends Client {
     sendTCP(p);
   }
 
-  protected void requestRoomJoin(long roomId, short password) {
+  protected void requestRoomJoin(long roomId, boolean withPassword, short password) {
     RoomJoinPacket p = new RoomJoinPacket();
     p.roomId = roomId;
+    p.withPassword = withPassword;
     p.password = password;
     p.type = provider.getType();
     sendTCP(p);
@@ -403,7 +411,7 @@ public class ClajPinger extends Client {
 
 
   /** Modified serializer that reads only one packet type in {@linkplain ClajPinger#pinging pinging} mode. */
-  protected static class Serializer extends ClajSerializer {
+  protected static class Serializer extends ClajClientSerializer {
     protected ClajPinger pinger;
     public void set(ClajPinger pinger) { this.pinger = pinger; }
 

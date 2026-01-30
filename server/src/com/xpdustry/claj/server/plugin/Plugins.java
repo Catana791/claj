@@ -1,18 +1,18 @@
 /**
- * This file is part of CLaJ. The system that allows you to play with your friends, 
+ * This file is part of CLaJ. The system that allows you to play with your friends,
  * just by creating a room, copying the link and sending it to your friends.
  * Copyright (c) 2025  Xpdustry
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -21,11 +21,13 @@ package com.xpdustry.claj.server.plugin;
 
 import java.util.Locale;
 
+import arc.ApplicationListener;
 import arc.files.Fi;
 import arc.files.ZipFi;
 import arc.func.Cons;
 import arc.func.Cons2;
 import arc.struct.*;
+import arc.util.CommandHandler;
 import arc.util.Log;
 import arc.util.Nullable;
 import arc.util.Strings;
@@ -34,30 +36,31 @@ import arc.util.Time;
 import arc.util.serialization.Json;
 import arc.util.serialization.Jval;
 
-import com.xpdustry.claj.server.ClajVars;
 import com.xpdustry.claj.server.util.JarLoader;
 import com.xpdustry.claj.server.util.JsonSettings;
 
 
 /** Simplified {@link mindustry.mod.Mods} that only handles plugins. */
-public class Plugins {
+public class Plugins implements ApplicationListener {
   private static final String[] metaFiles = {"plugin.json", "plugin.hjson"};
 
-  private final PluginClassLoader mainLoader = new PluginClassLoader(getClass().getClassLoader());
-  private final Json json = new Json();
+  public final Fi directory;
+  public final CommandHandler commands;
+  public final PluginClassLoader mainLoader = new PluginClassLoader(getClass().getClassLoader());
+  public final Json json = new Json();
   /** Ordered plugins cache. Set to null to invalidate. */
   private @Nullable Seq<LoadedPlugin> lastOrderedPlugins = new Seq<>();
-  
+
   private final Seq<LoadedPlugin> plugins = new Seq<>();
   private final ObjectMap<Class<?>, PluginMeta> metas = new ObjectMap<>();
   /** Used to find a plugin without specifying it. */
   private final ObjectMap<ClassLoader, Class<?>> loaders = new ObjectMap<>();
 
-  /** @return the main class loader for all plugins */
-  public ClassLoader mainLoader() {
-    return mainLoader;
+  public Plugins(Fi directory, CommandHandler commands) {
+    this.directory = directory;
+    this.commands = commands;
   }
-  
+
   /** @return the folder where configuration files for this plugin should go. Call this in init(). */
   public Fi getConfigFolder(Plugin plugin) {
     return getConfigFolder(plugin.getClass());
@@ -65,83 +68,83 @@ public class Plugins {
 
   /** @return the folder where configuration files for this plugin should go. Call this in init(). */
   public Fi getConfigFolder(Class<? extends Plugin> plugin) {
-    Fi result = ClajVars.pluginsDirectory.child(getMeta(plugin).name);
+    Fi result = directory.child(getMeta(plugin).name);
     result.mkdirs();
     return result;
   }
-  
+
   /** @return a settings handle of {@code 'plugins/<plugin-name>/config.json'}. Call this in init(). */
   public JsonSettings getConfig(Plugin plugin) {
     return getConfig(plugin.getClass());
   }
-  
+
   /** @return a settings handle of {@code 'plugins/<plugin-name>/config.json'}. Call this in init(). */
   public JsonSettings getConfig(Class<? extends Plugin> plugin) {
     return new JsonSettings(getConfigFolder(plugin).child("config.json"));
   }
-  
+
   /** @return the plugin meta data. Call this in init(). */
   public PluginMeta getMeta(Plugin plugin) {
     return getMeta(plugin.getClass());
   }
-  
+
   /** @return the plugin meta. Call this in init(). */
   public PluginMeta getMeta(Class<? extends Plugin> plugin) {
     PluginMeta load = metas.get(plugin);
     if(load == null) throw new IllegalArgumentException("Plugin is not loaded yet (or missing)!");
     return load;
   }
-  
+
   /** @return a new main logger for the plugin. */
   public PluginLogger getLogger(Plugin plugin) {
     return new PluginLogger(plugin);
   }
-  
+
   /** @return a new logger for the plugin with the specified {@code topicClass}. */
   public PluginLogger getLogger(Plugin plugin, Class<?> topicClass) {
     return new PluginLogger(plugin, topicClass);
   }
-   
+
   /** @return a new logger for the plugin with the specified {@code topic}. */
   public PluginLogger getLogger(Plugin plugin, String topic) {
     return new PluginLogger(plugin, topic);
   }
-  
+
   /** Same as {@link #getConfigFolder(Class)} but tries to detect the plugin by the class calling this method. */
   public Fi getConfigFolder() {
     Class<? extends Plugin> clazz = detectCallingPlugin();
     return clazz == null ? null : getConfigFolder(clazz);
   }
-  
+
   /** Same as {@link #getConfig(Class)} but tries to detect the plugin by the class calling this method. */
   public JsonSettings getConfig() {
     Class<? extends Plugin> clazz = detectCallingPlugin();
     return clazz == null ? null : getConfig(clazz);
   }
-  
+
   /** Same as {@link #getMeta(Class)} but tries to detect the plugin by the class calling this method. */
   public PluginMeta getMeta() {
     Class<? extends Plugin> clazz = detectCallingPlugin();
     return clazz == null ? null : getMeta(clazz);
   }
-  
+
   /** Same as {@link #getLogger(Plugin)} but tries to detect the plugin by the class calling this method. */
-  public PluginLogger getLogger() { 
-    return new PluginLogger(detectCallingPlugin()); 
+  public PluginLogger getLogger() {
+    return new PluginLogger(detectCallingPlugin());
   }
-  
+
   /** Same as {@link #getLogger(Plugin, Class)} but tries to detect the plugin by the class calling this method. */
-  public PluginLogger getLogger(Class<?> topicClass) { 
-    return new PluginLogger(detectCallingPlugin(), topicClass); 
+  public PluginLogger getLogger(Class<?> topicClass) {
+    return new PluginLogger(detectCallingPlugin(), topicClass);
   }
-  
+
    /** Same as {@link #getLogger(Plugin, String)} but tries to detect the plugin by the class calling this method. */
-  public PluginLogger getLogger(String topic) { 
-    return new PluginLogger(detectCallingPlugin(), topic); 
+  public PluginLogger getLogger(String topic) {
+    return new PluginLogger(detectCallingPlugin(), topic);
   }
-  
+
   /**
-   * Inspect the current thread stack to find which plugin (based on its ClassLoader) is calling the method. 
+   * Inspect the current thread stack to find which plugin (based on its ClassLoader) is calling the method.
    * @return the plugin main class or {@code null}.
    */
   @SuppressWarnings("unchecked")
@@ -162,7 +165,7 @@ public class Plugins {
     eachEnabled(plugin -> {
       Fi file = plugin.root.child(directory);
       if (file.exists()) {
-        for (Fi child : file.list()) 
+        for (Fi child : file.list())
           cons.get(plugin, child);
       }
     });
@@ -178,13 +181,34 @@ public class Plugins {
     return plugins.find(m -> m.main != null && m.main.getClass() == type);
   }
 
+  @Override
+  public void init() {
+    // Load plugins
+    directory.mkdirs(); // ensure folder is created
+    load();
+
+    // Register commands
+    eachClass(p -> p.registerCommands(commands));
+
+    // Check loaded plugins
+    if (!orderedPlugins().isEmpty()) Log.info("@ plugins loaded.", orderedPlugins().size);
+    int unsupported = plugins.count(p -> !p.enabled());
+    if (unsupported > 0) {
+      Log.err("There were errors loading @ plugin" + (unsupported > 1 ? "s:" : ":"), unsupported);
+      plugins.each(p -> !p.enabled(), p -> Log.err("- @ &ly(" + p.state + ")", p.meta.name));
+    }
+
+    // Finish plugins loading
+    eachClass(Plugin::init);
+  }
+
   /** Loads all plugins from the folder, but does not call any methods on them.*/
   public void load() {
     Seq<Fi> candidates = new Seq<>();
 
     // Add local plugins
-    Seq.with(ClajVars.pluginsDirectory.list())
-       .retainAll(f -> f.extEquals("jar") || f.extEquals("zip") || 
+    Seq.with(directory.list())
+       .retainAll(f -> f.extEquals("jar") || f.extEquals("zip") ||
                       (f.isDirectory() && Structs.contains(metaFiles, meta -> f.child(meta).exists())))
        .each(candidates::add);
 
@@ -192,9 +216,9 @@ public class Plugins {
     Seq<PluginMeta> metas = new Seq<>();
 
     // TODO: Plugins are experimental for now
-    if (candidates.any()) 
+    if (candidates.any())
       Log.warn("Detected server plugins! Please not that CLaJ plugins are an experimental feature and are subject to change.");
-    
+
     for (Fi file : candidates) {
       PluginMeta meta = null;
 
@@ -221,7 +245,7 @@ public class Plugins {
         plugins.add(plugin);
         //invalidate ordered plugins cache
         lastOrderedPlugins = null;
-        
+
       } catch (Throwable e) {
         Log.err("Failed to load plugin file @. Skipping.", file);
         Log.err(e);
@@ -250,7 +274,7 @@ public class Plugins {
         plugin.missingDependencies.add(plugin.meta.dependencies.get(i));
     }
     for (int i=0; i<plugin.softDependencies.size; i++) {
-      if (plugin.softDependencies.get(i) == null) 
+      if (plugin.softDependencies.get(i) == null)
         plugin.missingSoftDependencies.add(plugin.meta.softDependencies.get(i));
     }
   }
@@ -277,9 +301,9 @@ public class Plugins {
     return plugins.select(LoadedPlugin::enabled).map(p -> p.name + ':' + p.meta.version);
   }
 
-  /** 
+  /**
    * @return The plugins that the client is missing, in the format {@code name:version}. <br>
-   *         The inputed array must be in the same format, 
+   *         The inputed array must be in the same format,
    *         and is changed to contain the extra plugins that the client has but the server doesn't.
    */
   public Seq<String> getIncompatibility(Seq<String> out) {
@@ -301,7 +325,7 @@ public class Plugins {
   }
 
   public void contextRun(LoadedPlugin plugin, Runnable run) {
-    try { run.run(); } 
+    try { run.run(); }
     catch (Throwable t) { throw new RuntimeException("Error loading plugin " + plugin.meta.name, t); }
   }
 
@@ -345,32 +369,32 @@ public class Plugins {
 
   private boolean resolve(String element, PluginResolutionContext context) {
     context.visited.add(element);
-    
+
     for (PluginDependency dependency : context.dependencies.get(element)) {
       // Circular dependencies ?
       if (context.visited.contains(dependency.name) && !context.ordered.contains(dependency.name)) {
         context.invalid.put(dependency.name, PluginState.circularDependencies);
         return false;
-          
+
       // If dependency present, resolve it, or if it's not required, ignore
       } else if (context.dependencies.containsKey(dependency.name)) {
         if (!context.ordered.contains(dependency.name) && !resolve(dependency.name, context) && dependency.required) {
           context.invalid.put(element, PluginState.incompleteDependencies);
           return false;
         }
-          
+
       // The dependency is missing, but if not required, skip
       } else if (dependency.required) {
         context.invalid.put(element, PluginState.missingDependencies);
         return false;
       }
     }
-    
+
     if (!context.ordered.contains(element)) context.ordered.add(element);
     return true;
   }
 
-  /** 
+  /**
    * Loads a plugin file+meta, but does not add it to the list. <br>
    * Note that directories can be loaded as plugins.
    */
@@ -396,14 +420,14 @@ public class Plugins {
       if (overwrite) {
         //close zip file
         if (other.root instanceof ZipFi) other.root.delete();
-        
+
         //delete the old plugin directory
         if (other.file.isDirectory()) other.file.deleteDirectory();
         else other.file.delete();
 
         //unload
         plugins.remove(other);
-        
+
       } else throw new PluginLoadException("A plugin with the name '" + baseName + "' is already imported.");
     }
 
@@ -426,19 +450,20 @@ public class Plugins {
       //TODO: test
       //detect plugins that incorrectly package CLaJ in the jar
       //Note: This works because JarLoader uses a child-first loading strategy.
-      if (Class.forName(Plugin.class.getName(), false, loader) != Plugin.class) 
+      if (Class.forName(Plugin.class.getName(), false, loader) != Plugin.class)
         throw new PluginLoadException(
-          "This plugin has loaded CLaJ dependencies from its own class loader. " +
-          "You are incorrectly including CLaJ dependencies in the plugin JAR! " +
-          "Make sure CLaJ is declared as `compileOnly` in your `build.gradle`, " + 
-          "and the JAR is created with `runtimeClasspath`."
+          """
+              This plugin has loaded CLaJ dependencies from its own class loader. \
+              You are incorrectly including CLaJ dependencies in the plugin JAR! \
+              Make sure CLaJ is declared as `compileOnly` in your `build.gradle`, \
+              and the JAR is created with `runtimeClasspath`."""
         );
-      
+
       metas.put(main, meta);
       loaders.put(loader, main);
       mainMod = (Plugin)main.getDeclaredConstructor().newInstance();
     } else mainMod = null;
-    
+
     //disallow putting a description after the version
     if (meta.version != null) {
       int line = meta.version.indexOf('\n');
@@ -480,7 +505,7 @@ public class Plugins {
       this.loader = loader;
       this.main = main;
       this.meta = meta;
-      this.name = meta.name;
+      name = meta.name;
     }
 
     public boolean enabled() {
@@ -536,15 +561,15 @@ public class Plugins {
     }
   }
 
-  
+
   @SuppressWarnings("serial")
   public static class PluginLoadException extends RuntimeException {
-    public PluginLoadException(String message) { 
-      super(message); 
+    public PluginLoadException(String message) {
+      super(message);
     }
   }
 
-  
+
   public enum PluginState {
     enabled,
     missingDependencies,
@@ -552,7 +577,7 @@ public class Plugins {
     circularDependencies,
   }
 
-  
+
   public static class PluginResolutionContext {
     public final ObjectMap<String, Seq<PluginDependency>> dependencies = new ObjectMap<>();
     public final ObjectSet<String> visited = new ObjectSet<>();

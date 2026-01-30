@@ -46,17 +46,20 @@ public class StaleConnectionsCleaner {
       boolean refreshing;
       long nextRefresh = Long.MAX_VALUE, ntimeout = timeout * 1_000_000L;
 
+      @Override
       public void connected(Connection connection) {
         connecting.put(connection, System.nanoTime() + ntimeout);
         recalculateRefresh();
       }
 
+      @Override
       public void disconnected(Connection connection, DcReason reason) {
         if (refreshing) return; // Refresher remove faster
         if (connecting.remove(connection) != null)
           recalculateRefresh();
       }
 
+      @Override
       public void received(Connection connection, Object object) {
         if (waitingc != null ? waitingc == object.getClass() : waitingl.contains(object.getClass()) &&
             connecting.remove(connection) != null)

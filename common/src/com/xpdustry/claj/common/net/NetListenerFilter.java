@@ -17,18 +17,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.common.status;
+package com.xpdustry.claj.common.net;
+
+import arc.net.Connection;
+import arc.net.DcReason;
 
 
-public enum MessageType {
-  serverClosing,
-  packetSpamming,
-  alreadyHosting,
-  roomClosureDenied,
-  conClosureDenied,
-  configureDenied,
-  statingDenied,
-  ;
-
-  public static final MessageType[] all = values();
+public interface NetListenerFilter {
+  default boolean connected(Connection connection) { return true; }
+  default boolean disconnected(Connection connection, DcReason reason) { return true; }
+  default boolean received(Connection connection, Object object) { return true; }
+  /** In general idle events are always discarded. */
+  default boolean idle(Connection connection) { return false; }
 }

@@ -39,30 +39,30 @@ public class PluginLogger {
 
   public static String pluginTopicFormat = "&lc[@&lc]";
   public static String classTopicFormat = "&ly[@&ly]";
-  
+
   /** If {@code true}, plugin and class topics will not be displayed. */
   public boolean noTopic = false;
   public String plugin, topic;
-  
+
   public PluginLogger(boolean noTopic) {
     this.noTopic = noTopic;
   }
-  
+
   public PluginLogger() { this((String)null, (String)null); }
-  
+
   public PluginLogger(Class<? extends Plugin> plugin) { this(plugin, (String)null); }
   public PluginLogger(Plugin plugin) { this(plugin, (String)null); }
   public PluginLogger(String plugin) { this(plugin, (String)null); }
-  
+
   public PluginLogger(Class<? extends Plugin> plugin, Class<?> clazz) { this(plugin, Strings.formattedClassName(clazz)); }
   public PluginLogger(Plugin plugin, Class<?> clazz) { this(plugin, Strings.formattedClassName(clazz)); }
   public PluginLogger(String plugin, Class<?> clazz) { this(plugin, Strings.formattedClassName(clazz)); }
-  
+
   public PluginLogger(Class<? extends Plugin> plugin, String topic) { this(ClajVars.plugins.getMeta(plugin).displayName, topic); }
   public PluginLogger(Plugin plugin, String topic) { this(ClajVars.plugins.getMeta(plugin).displayName, topic); }
   public PluginLogger(String plugin, String topic) {
     this.plugin = plugin;
-    if (topic != null && !(topic = topic.trim()).isEmpty()) 
+    if (topic != null && !(topic = topic.trim()).isEmpty())
       this.topic = topic;
   }
 
@@ -89,11 +89,11 @@ public class PluginLogger {
         Log.logger.log(level, tag + text.substring(i, nl));
         i = nl + 1;
         nl = text.indexOf('\n', i);
-      } 
-      Log.logger.log(level, tag + (i == 0 ? text : text.substring(i)));        
+      }
+      Log.logger.log(level, tag + (i == 0 ? text : text.substring(i)));
     }
   }
-  
+
   public void log(LogLevel level, String text, Throwable th, Object... args) { logImpl(level, text, th, args); }
   public void log(LogLevel level, String text, Object... args) { log(level, text, null, args); }
   public void log(LogLevel level, String text) { log(level, text, empty); }
@@ -105,14 +105,14 @@ public class PluginLogger {
   public void info(Object object) { info(String.valueOf(object), empty); }
 
   public void warn(String text, Object... args) { log(LogLevel.warn, text, args); }
-  public void warn(String text) { warn(text, empty); }  
-  
+  public void warn(String text) { warn(text, empty); }
+
   public void err(String text, Throwable th, Object... args) { log(LogLevel.err, text, th, args); }
   public void err(String text, Object... args) { err(text, null, args); }
   public void err(String text, Throwable th) { err(text, th, empty); }
   public void err(String text) { err(text, null, empty); }
-  public void err(Throwable th) { err(null, th, empty); } 
-  
+  public void err(Throwable th) { err(null, th, empty); }
+
   /** Log an empty "info" line. */
   public void ln() { log(LogLevel.info, null, empty); }
 }

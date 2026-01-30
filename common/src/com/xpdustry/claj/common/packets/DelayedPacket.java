@@ -21,6 +21,7 @@ package com.xpdustry.claj.common.packets;
 
 import java.nio.ByteBuffer;
 
+import arc.util.Threads;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
@@ -31,8 +32,8 @@ import arc.util.io.ByteBufferOutput;
  */
 public abstract class DelayedPacket implements Packet {
   private static final byte[] NODATA = {};
-  private static final ByteBuffer EMPTYBUFF = ByteBuffer.wrap(NODATA);
-  private static final ByteBufferInput READ = new ByteBufferInput(EMPTYBUFF);
+  private static final ThreadLocal<ByteBufferInput> READ =
+    Threads.local(() -> new ByteBufferInput(ByteBuffer.wrap(NODATA)));
 
   private byte[] DATA = NODATA;
 
@@ -45,12 +46,15 @@ public abstract class DelayedPacket implements Packet {
   @Override
   public final void handled() {
     if (DATA == NODATA) return; // avoid double reading
-    READ.buffer = ByteBuffer.wrap(DATA);
-    readImpl(READ);
+    ByteBufferInput read = READ.get();
+    if (read.buffer.capacity() < DATA.length)
+      read.buffer = ByteBuffer.allocate(DATA.length);
+    ((ByteBuffer)read.buffer.clear()).put(DATA).flip();
+    readImpl(read);
     DATA = NODATA;
-    READ.buffer = EMPTYBUFF;
   }
 
   protected abstract void readImpl(ByteBufferInput read);
+  @Override
   public abstract void write(ByteBufferOutput write);
 }

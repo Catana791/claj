@@ -219,8 +219,8 @@ public class BrowserDialog extends BaseDialog {
       label.label(() -> Strings.animated(Time.time, 4, 11, ".")).pad(5, 3, 5, 0).color(Pal.accent);
 
       Claj.get().pingHost/*test.mockPingHost*/(server.address, server.port, s -> {
-        server.compatible = s.version == Claj.get().provider.getVersion();
-        server.outdated = s.version < Claj.get().provider.getVersion();
+        server.compatible = s.version == Claj.get().provider.getVersion().majorVersion;
+        server.outdated = s.version < Claj.get().provider.getVersion().majorVersion;
         if (server.compatible) {
           ping.image(Icon.ok, Color.green).padRight(7).left();
         } else {

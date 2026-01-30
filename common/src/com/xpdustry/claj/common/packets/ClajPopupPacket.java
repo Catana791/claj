@@ -19,4 +19,5 @@
 
 package com.xpdustry.claj.common.packets;
 
+
 public class ClajPopupPacket extends ClajTextMessagePacket {}

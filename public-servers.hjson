@@ -1,9 +1,7 @@
-// Public CLaJ servers list
-
-//"Chaotic Neutral": "n3.xpdustry.com:7025"
-"Chaotic Neutral": "n3.xpdustry.com:7026",
-"Mindustry.ltd China": "p2.mindustry.ltd:35850",
-"Eradication India": "in3.eradication.fun:8025",
-"Eradication USA": "us1.eradication.fun:8025",
-"Eradication UK": "uk1.eradication.fun:8025",
+// Public CLaJ node list
+"Chaotic Neutral FR": "n4.xpdustry.com:50000"
+"Mindustry.ltd China": "p2.mindustry.ltd:35850"
+"Eradication India": "in3.eradication.fun:8025"
+"Eradication USA": "us1.eradication.fun:8025"
+"Eradication UK": "uk1.eradication.fun:8025"
 "Eradication RU": "ru1.eradication.fun:8025"

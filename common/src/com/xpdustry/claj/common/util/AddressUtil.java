@@ -1,9 +1,16 @@
 package com.xpdustry.claj.common.util;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
+import arc.net.Connection;
 
 
-public class AddressHasher {
+public class AddressUtil {
+  public static long hash(Connection connection) {
+    return hash(connection.getRemoteAddressTCP().getAddress());
+  }
+
   /** Hashes the address using FNV-1a 64-bit. */
   public static long hash(InetAddress address) {
     long hash = 0xcbf29ce484222325L;
@@ -32,5 +39,18 @@ public class AddressHasher {
   /** Hashes the address then converts it back to an address. */
   public static InetAddress obfuscate(InetAddress address) {
     return generate(hash(address));
+  }
+
+  public static String get(Connection con) {
+    InetSocketAddress a = con.getRemoteAddressTCP();
+    return a == null ? null : a.getAddress().getHostAddress();
+  }
+
+  public static String encodeId(Connection con) {
+    return encodeId(con.getID());
+  }
+
+  public static String encodeId(int conId) {
+    return "0x"+Integer.toHexString(conId);
   }
 }

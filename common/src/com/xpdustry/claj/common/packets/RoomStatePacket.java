@@ -17,23 +17,30 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.server.net;
+package com.xpdustry.claj.common.packets;
+
+import java.nio.ByteBuffer;
 
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
-import com.xpdustry.claj.common.packets.Packet;
 
+public class RoomStatePacket extends RoomLinkPacket {
+  public ByteBuffer state;
 
-public class RawPacket implements Packet {
-  public byte[] data = {};
-
-  public void read(ByteBufferInput read) {
-    data = new byte[read.buffer.remaining()];
+  @Override
+  protected void readImpl(ByteBufferInput read) {
+    super.readImpl(read);
+    byte[] data = new byte[read.readChar()];
     read.readFully(data);
+    state = ByteBuffer.wrap(data);
   }
 
+  @Override
   public void write(ByteBufferOutput write) {
-    write.write(data);
+    super.write(write);
+    write.writeChar(state.remaining());
+    //write.write(state.array(), state.position(), state.remaining());
+    write.buffer.put(state);
   }
 }

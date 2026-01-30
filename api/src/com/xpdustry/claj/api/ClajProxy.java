@@ -48,7 +48,7 @@ public class ClajProxy extends ProxyClient {
   protected ClajLink link;
 
   public ClajProxy(ClajProvider provider) {
-    super(32768, 16384, new ClajSerializer(), provider.getConnectionListener(), provider::postTask);
+    super(32768, 16384, new ClajClientSerializer(), provider.getConnectionListener(), provider::postTask);
     this.provider = provider;
 
     receiver.handle(Connect.class, this::requestRoomId);
@@ -71,14 +71,12 @@ public class ClajProxy extends ProxyClient {
     });
 
     receiver.handle(RoomClosedPacket.class, p -> {
-      if (!roomCreated()) runRoomClose(p.reason);
+      runRoomClose(p.reason);
     });
     receiver.handle(RoomLinkPacket.class, p -> {
       if (!roomCreated()) runRoomCreated(p.roomId);
     });
-    receiver.handle(RoomInfoRequestPacket.class, p -> {
-      if (p.roomId == roomId) notifyGameState();
-    });
+    receiver.handle(RoomStateRequestPacket.class, this::notifyGameState);
 
     receiver.handle(ClajTextMessagePacket.class, p -> {
       provider.showTextMessage(p.message);
@@ -116,6 +114,7 @@ public class ClajProxy extends ProxyClient {
     if (roomId == UNCREATED_ROOM) return;
     if (roomCreated != null) postTask(roomCreated, link);
     notifyConfiguration();
+    //TODO: also notify initial state?
   }
 
   /** This also resets room id and removes callbacks. */
@@ -154,7 +153,7 @@ public class ClajProxy extends ProxyClient {
 
   public void requestRoomId() {
     if (roomCreated()) return;
-    sendTCP(makeRoomCreatePacket(provider.getVersion(), provider.getType()));
+    sendTCP(makeRoomCreatePacket(provider.getVersion().majorVersion, provider.getType()));
   }
 
   public void setDefaultConfiguration(boolean isPublic, boolean isProtected, short roomPassword) {
@@ -184,7 +183,7 @@ public class ClajProxy extends ProxyClient {
   }
 
   protected Packet makeRoomStatePacket(long roomId, ByteBuffer state) {
-    RoomInfoPacket p = new RoomInfoPacket();
+    RoomStatePacket p = new RoomStatePacket();
     p.roomId = roomId;
     p.state = state;
     return p;
@@ -206,7 +205,7 @@ public class ClajProxy extends ProxyClient {
   }
 
   protected Packet makeRoomClosePacket() {
-    return new RoomClosureRequestPacket();
+    return RoomClosureRequestPacket.instance;
   }
 
   @Override

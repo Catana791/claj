@@ -27,11 +27,9 @@
 package com.xpdustry.claj.common.util;
 
 import java.io.*;
-import java.net.InetSocketAddress;
 import java.util.*;
 
 import arc.func.*;
-import arc.net.Connection;
 import arc.struct.Seq;
 import arc.util.io.*;
 import arc.util.serialization.*;
@@ -43,9 +41,9 @@ public class Strings extends arc.util.Strings {
   /** Justify string to the right. E.g. "&emsp; right" */
   public static String rJust(String str, int length, String filler) {
     int sSize = str.length(), fSize = filler.length();
-    
-    if (fSize == 0 || sSize >= length) return str; 
-    if (fSize == 1) return repeat(filler, length-sSize)+str;   
+
+    if (fSize == 0 || sSize >= length) return str;
+    if (fSize == 1) return repeat(filler, length-sSize)+str;
     int add = length-sSize;
     return repeat(filler, add/fSize)+filler.substring(0, add%fSize)+str;
   }
@@ -59,7 +57,7 @@ public class Strings extends arc.util.Strings {
   /** Justify string to the left. E.g. "left &emsp;" */
   public static String lJust(String str, int length, String filler) {
     int sSize = str.length(), fSize = filler.length();
-    
+
     if (fSize == 0 || sSize >= length) return str;
     if (fSize == 1) return str+repeat(filler, length-sSize);
     int add = length-sSize;
@@ -70,12 +68,12 @@ public class Strings extends arc.util.Strings {
     list.replace(str -> lJust(str, length, filler));
     return list;
   }
-  
+
   public static String cJust(String str, int length) { return cJust(str, length, " "); }
   /** Justify string to the center. E.g. "&emsp; center &emsp;". */
   public static String cJust(String str, int length, String filler) {
     int sSize = str.length(), fSize = filler.length();
-    
+
     if (fSize == 0 || sSize >= length) return str;
     int add = length-sSize, left = add/2, right = add-add/2;
     if (fSize == 1) return repeat(filler, left)+str+repeat(filler, right);
@@ -92,8 +90,8 @@ public class Strings extends arc.util.Strings {
   /** Justify string to the sides. E.g. "left &emsp; right" */
   public static String sJust(String left, String right, int length, String filler) {
     int fSize = filler.length(), lSize = left.length(), rSize = right.length();
-    
-    if (fSize == 0 || lSize+rSize >= length) return left+right; 
+
+    if (fSize == 0 || lSize+rSize >= length) return left+right;
     int add = length-lSize-rSize;
     if (fSize == 1) return left+repeat(filler, add)+right;
     return left+repeat(filler, add/fSize)+filler.substring(0, add%fSize)+right;
@@ -107,10 +105,10 @@ public class Strings extends arc.util.Strings {
     // Fill the rest
     for (; i<left.size; i++) arr.set(i, /*.add(*/lJust(left.get(i), length, filler));
     for (; i<right.size; i++) arr.add(rJust(right.get(i), length, filler));
-    
+
     return arr;
   }
-  
+
   @SafeVarargs
   public static Seq<String> columnify(Seq<String>... columns) {
     return columnify(1, columns);
@@ -120,12 +118,12 @@ public class Strings extends arc.util.Strings {
   public static Seq<String> columnify(int gap, Seq<String>... columns) {
     return columnify(gap, " ", columns);
   }
-  
+
   @SafeVarargs
   public static Seq<String> columnify(String filler, Seq<String>... columns) {
     return columnify(1, filler, columns);
   }
-  
+
   @SafeVarargs
   public static Seq<String> columnify(int gap, String filler, Seq<String>... columns) {
     int[] lengths = new int[columns.length];
@@ -136,7 +134,7 @@ public class Strings extends arc.util.Strings {
   public static Seq<String> columnify(String filler, Seq<String>[] columns, int[] lengths) {
     return columnify(1, filler, columns, lengths);
   }
-  
+
   public static Seq<String> columnify(int gap, String filler, Seq<String>[] columns, int[] lengths) {
     if (columns.length == 0) return new Seq<>(0);
     if (lengths.length < columns.length) {
@@ -145,40 +143,40 @@ public class Strings extends arc.util.Strings {
       for (int c=lengths.length; c<columns.length; c++) newLengths[c] = maxLength(columns[c]);
       lengths = newLengths;
     }
-    
+
     int max = Structs.max(columns, a -> a.size), fSize = filler.length();
     Seq<String> arr = new Seq<>(max);
     StringBuilder builder = new StringBuilder();
     String[] fillers = new String[columns.length];
-    
+
     for (int i=0, c; i<max; i++) {
       for (c=0; c<columns.length; c++) {
         if (i < columns[c].size) builder.append(lJust(columns[c].get(i), lengths[c] + gap, filler));
         else if (fillers[c] != null) builder.append(fillers[c]);
         else if (fSize == 1) builder.append(fillers[c] = repeat(filler, lengths[c] + gap));
-        else builder.append(fillers[c] = repeat(filler, (lengths[c] + gap) / fSize) + 
+        else builder.append(fillers[c] = repeat(filler, (lengths[c] + gap) / fSize) +
                                          filler.substring(0, (lengths[c] + gap) % fSize));
       }
       arr.add(builder.toString());
       builder.setLength(0);
     }
-    
+
     return arr;
   }
-    
+
   public static Seq<String> tableify(Seq<String> lines, int width) {
     return tableify(lines, width, Strings::lJust);
   }
-  
+
   public static Seq<String> tableify(Seq<String> lines, int width, int gap) {
     return tableify(lines, width, gap, Strings::lJust);
   }
-  
+
   public static Seq<String> tableify(Seq<String> lines, int width, Func2<String, Integer, String> justifier) {
     return tableify(lines, width, 1, justifier);
   }
-  
-  /** 
+
+  /**
    * Create a table with given {@code lines}.<br>
    * Columns number is automatic calculated with the table's {@code width}.
    */
@@ -187,50 +185,50 @@ public class Strings extends arc.util.Strings {
     Seq<String> result = new Seq<>(lines.size / columns + 1);
     int[] bests = new int[columns];
     StringBuilder builder = new StringBuilder();
-    
+
     // Calculate the best length for each columns
     for (int i=0, c=0, s=0; i<lines.size; i++) {
       s = lines.get(i).length();
       c = i % columns;
       if (s > bests[c]) bests[c] = s;
     }
-    
+
     // Now justify lines
-    for (int i=0, c; i<lines.size;) { 
-      for (c=0; c<columns && i<lines.size; c++, i++) 
+    for (int i=0, c; i<lines.size;) {
+      for (c=0; c<columns && i<lines.size; c++, i++)
         builder.append(justifier.get(lines.get(i), bests[c] + gap));
-      
+
       result.add(builder.toString());
       builder.setLength(0);
     }
-    
+
     return result;
   }
-  
+
   public static boolean isVersionAtLeast(String currentVersion, String newVersion) {
     return isVersionAtLeast(currentVersion, newVersion, 0);
   }
-  
-  /** 
+
+  /**
    * Compare if the {@code newVersion} is greater than the {@code currentVersion}, e.g. "v146" > "124.1". <br>
-   * {@code maxDepth} limits the number of comparisons of version segments, allowing sub-versions to be ignored. 
+   * {@code maxDepth} limits the number of comparisons of version segments, allowing sub-versions to be ignored.
    * (default is 0)
-   * 
+   *
    * @apiNote can handle dots and dashes in the version and makes very fast comparison. <br>
    *          Also ignores non-int parts. (e.g. {@code "v1.2-rc36"}, the {@code "rc36"} part will be ignored)
    */
   public static boolean isVersionAtLeast(String currentVersion, String newVersion, int maxDepth) {
     if (maxDepth < 1) maxDepth = Integer.MAX_VALUE;
-    if (currentVersion == null || newVersion == null || 
+    if (currentVersion == null || newVersion == null ||
         currentVersion.isEmpty() || newVersion.isEmpty()) return false;
-    
-    int last1 = currentVersion.charAt(0) == 'v' ? 1 : 0, last2 = newVersion.charAt(0) == 'v' ? 1 : 0, 
-        len1 = currentVersion.length(), 
+
+    int last1 = currentVersion.charAt(0) == 'v' ? 1 : 0, last2 = newVersion.charAt(0) == 'v' ? 1 : 0,
+        len1 = currentVersion.length(),
         len2 = newVersion.length(),
-        dash1 = 0, dash2 = 0, 
-        dot1 = 0, dot2 = 0, 
+        dash1 = 0, dash2 = 0,
+        dot1 = 0, dot2 = 0,
         p1 = 0, p2 = 0;
-    
+
     while ((dot1 != -1 && dot2 != -1) && (last1 < len1 && last2 < len2) && maxDepth-- > 0) {
       dot1 = currentVersion.indexOf('.', last1);
       dash1 = currentVersion.indexOf('-', last1);
@@ -242,7 +240,7 @@ public class Strings extends arc.util.Strings {
       if (dot2 == -1) dot2 = dash2;
       if (dash2 != -1) dot2 = Math.min(dot2, dash2);
       if (dot2 == -1) dot2 = len2;
-      
+
       p1 = parseInt(currentVersion, 10, 0, last1, dot1);
       p2 = parseInt(newVersion, 10, 0, last2, dot2);
       last1 = dot1+1;
@@ -259,20 +257,20 @@ public class Strings extends arc.util.Strings {
       if (dot2 == -1) dot2 = dash2;
       if (dash2 != -1) dot2 = Math.min(dot2, dash2);
       if (dot2 == -1) dot2 = len2;
-      
+
       p2 = parseInt(newVersion, 10, 0, last2, dot2);
       last2 = dot2+1;
-      
+
       if (p2 > 0) return true;
     }
-    
+
     return false;
   }
-  
+
   public static String kebabize(String s) {
     StringBuilder sb = new StringBuilder(s.length());
     boolean sep = true;
-    
+
     for (int i=0, n=s.length(); i<n; i++) {
       char c = s.charAt(i);
       if (c == '_' || c == '-' || c == ' ') {
@@ -284,13 +282,13 @@ public class Strings extends arc.util.Strings {
         sep = false;
       } else {
         sb.append(c);
-        sep = false;  
+        sep = false;
       }
     }
-    
+
     return sb.toString();
   }
-  
+
   /** Taken from the {@link String#repeat(int)} method of JDK 11 */
   public static String repeat(String str, int count) {
     if (count < 0) throw new IllegalArgumentException("count is negative: " + count);
@@ -305,17 +303,17 @@ public class Strings extends arc.util.Strings {
       Arrays.fill(single, value[0]);
       return new String(single);
     }
-    
+
     final int limit = len * count;
     final byte[] multiple = new byte[limit];
     System.arraycopy(value, 0, multiple, 0, len);
     int copied = len;
-    for (; copied < limit - copied; copied <<= 1) 
+    for (; copied < limit - copied; copied <<= 1)
       System.arraycopy(multiple, 0, multiple, copied, copied);
     System.arraycopy(multiple, 0, multiple, copied, limit - copied);
     return new String(multiple);
   }
-  
+
   public static String repeat(char c, int count) {
     final char[] single = new char[count];
     Arrays.fill(single, c);
@@ -325,7 +323,7 @@ public class Strings extends arc.util.Strings {
   public static int maxLength(Iterable<? extends String> list) {
     return Structs.max(list, String::length);
   }
-  
+
   public static int maxLength(String... list) {
     return Structs.max(list, String::length);
   }
@@ -339,61 +337,55 @@ public class Strings extends arc.util.Strings {
   public static boolean isTrue(String str) {
     return isTrue(str, true);
   }
-  
+
   /** @return whether the specified string mean true */
   public static boolean isTrue(String str, boolean isValue) {
     if (isValue) {
-      switch (str.toLowerCase()) {
-        case "1": case "true": case "on": 
-        case "enable": case "activate": case "yes":
-                 return true;
-        default: return false;
-      }  
+      return switch (str.toLowerCase()) {
+        case "1", "true", "on", "enable", "activate", "yes" -> true;
+        default -> false;
+      };
     } else {
-      switch (str.toLowerCase()) {
-        case "on": case "enable": case "activate":
-                 return true;
-        default: return false;
-      }
+      return switch (str.toLowerCase()) {
+        case "on", "enable", "activate" -> true;
+        default -> false;
+      };
     }
   }
-  
+
   /** @return whether the specified string mean false */
   public static boolean isFalse(String str) {
     return isFalse(str, true);
   }
-  
+
   /** @return whether the specified string mean false */
   public static boolean isFalse(String str, boolean isValue) {
     if (isValue) {
-      switch (str.toLowerCase()) {
-        case "0": case "false": case "off": 
-        case "disable": case "desactivate": case "no":
-                 return true;
-        default: return false;
-      }  
+      return switch (str.toLowerCase()) {
+        case "0", "false", "off", "disable", "desactivate", "no" -> true;
+        default -> false;
+      };
     } else {
-      switch (str.toLowerCase()) {
-        case "off": case "disable": case "desactivate":
-                 return true;
-        default: return false;
-      }
+      return switch (str.toLowerCase()) {
+        case "off", "disable", "desactivate" -> true;
+        default -> false;
+      };
     }
   }
 
   public static String jsonPrettyPrint(JsonValue object, OutputType outputType) {
     StringWriter out = new StringWriter();
-    try { jsonPrettyPrint(object, out, outputType, 0); } 
+    try { jsonPrettyPrint(object, out, outputType, 0); }
     catch (IOException ignored) { return ""; }
     return out.toString();
   }
-  
+
   public static void jsonPrettyPrint(JsonValue object, Writer writer, OutputType outputType) throws IOException {
     jsonPrettyPrint(object, writer, outputType, 0);
   }
-  
-  /** 
-   * Re-implementation of {@link JsonValue#prettyPrint(OutputType, Writer)}, 
+
+  /**
+   * Re-implementation of {@link JsonValue#prettyPrint(OutputType, Writer)},
    * because the ident isn't correct and the max object size before new line is too big.
    */
   public static void jsonPrettyPrint(JsonValue object, Writer writer, OutputType outputType, int indent) throws IOException {
@@ -440,10 +432,10 @@ public class Strings extends arc.util.Strings {
       default: throw new SerializationException("Unknown object type: " + object);
     }
   }
-  
-  /** 
-   * Re-implementation of {@link JsonValue#json(JsonValue, StringBuilder, OutputType)}, 
-   * with the ability write directly to a {@link Writer} instead of a {@link StringBuilder}. 
+
+  /**
+   * Re-implementation of {@link JsonValue#json(JsonValue, StringBuilder, OutputType)},
+   * with the ability write directly to a {@link Writer} instead of a {@link StringBuilder}.
    */
   public static void toJson(JsonValue object, Writer writer, OutputType outputType) throws IOException {
     switch (object.type()) {
@@ -479,13 +471,13 @@ public class Strings extends arc.util.Strings {
       default: throw new SerializationException("Unknown object type: " + object);
     }
   }
-  
+
   private static boolean needNewLine(JsonValue object, int maxChildren) {
-    for (JsonValue child = object.child; child != null; child = child.next) 
+    for (JsonValue child = object.child; child != null; child = child.next)
       if (child.isObject() || child.isArray() || --maxChildren < 0) return true;
     return false;
   }
-  
+
   /** Like {@link #format(String, Object[])} but you can specify the {@link StringBuilder}. */
   public static void format(StringBuilder out, String text, Object... args){
     if (args.length > 0) {
@@ -496,7 +488,7 @@ public class Strings extends arc.util.Strings {
       }
     } else out.append(text);
   }
-  
+
   /** Like {@link String#join(CharSequence, CharSequence[])} but you can specify the start and end of the list. */
   public static String join(CharSequence delimiter, CharSequence[] elements, int start, int end) {
     if (elements == null || delimiter == null) return null;
@@ -506,27 +498,27 @@ public class Strings extends arc.util.Strings {
     for (int i=start; i<end; i++) joiner.add(elements[i]);
     return joiner.toString();
   }
-  
+
   /** Converts a list to a human readable sentence. E.g. {@code [1, 2, 3, 4, 5]} -> {@code "1, 2, 3, 4 and 5"} */
   public static <T> String toSentence(Iterable<T> list, Func<T, String> stringifier) {
     StringBuilder builder = new StringBuilder();
     toSentence(builder, list, (b, e) -> b.append(stringifier.get(e)));
     return builder.toString();
   }
-  
+
   /** Converts a list to a human readable sentence with configurable {@code or} and {@code and} delimiters. */
   public static <T> String toSentence(Iterable<T> list, Func<T, String> stringifier, String or, String and) {
     StringBuilder builder = new StringBuilder();
     toSentence(builder, list, (b, e) -> b.append(stringifier.get(e)), or, and);
     return builder.toString();
   }
-  
+
   /** Converts a list to a human readable sentence. E.g. {@code [1, 2, 3, 4, 5]} -> {@code "1, 2, 3, 4 and 5"} */
   public static <T> void toSentence(StringBuilder builder, Iterable<T> list, Cons2<StringBuilder, T> stringifier) {
     toSentence(builder, list, stringifier, ", ", " and ");
   }
   /** Converts a list to a human readable sentence with configurable {@code or} and {@code and} delimiters. */
-  public static <T> void toSentence(StringBuilder builder, Iterable<T> list, Cons2<StringBuilder, T> stringifier, 
+  public static <T> void toSentence(StringBuilder builder, Iterable<T> list, Cons2<StringBuilder, T> stringifier,
                                     String or, String and) {
     Iterator<T> iter = list.iterator();
     if (!iter.hasNext()) return;
@@ -538,7 +530,7 @@ public class Strings extends arc.util.Strings {
       stringifier.get(builder, tmp);
     }
   }
-  
+
   /** {@link String#contains(CharSequence)} but with a predicate. */
   public static boolean contains(String src, Boolf<Character> predicate) {
     for (int i=0, n=src.length(); i<n; i++) {
@@ -546,7 +538,7 @@ public class Strings extends arc.util.Strings {
     }
     return false;
   }
-  
+
   /** {@link String#matches(String)} but with a predicate. */
   public static boolean matches(String src, Boolf<Character> predicate) {
     for (int i=0, n=src.length(); i<n; i++) {
@@ -554,20 +546,7 @@ public class Strings extends arc.util.Strings {
     }
     return true;
   }
-  
-  public static String conIDToString(Connection con) {
-    return conIDToString(con.getID());
-  }
-  
-  public static String conIDToString(int conID) {
-    return "0x"+Integer.toHexString(conID);
-  }
-  
-  public static String getIP(Connection con) {
-    InetSocketAddress a = con.getRemoteAddressTCP();
-    return a == null ? null : a.getAddress().getHostAddress();
-  }
-  
+
   /** Encodes a long to an url-safe base64 string. */
   public static String longToBase64(long l) {
     byte[] result = new byte[Long.BYTES];
@@ -577,7 +556,7 @@ public class Strings extends arc.util.Strings {
     }
     return new String(Base64Coder.encode(result, Base64Coder.urlsafeMap));
   }
-  
+
   public static long base64ToLong(String str) {
     byte[] b = Base64Coder.decode(str, Base64Coder.urlsafeMap);
     if (b.length != Long.BYTES) throw new IndexOutOfBoundsException("must be " + Long.BYTES + " bytes");
@@ -588,19 +567,19 @@ public class Strings extends arc.util.Strings {
     }
     return result;
   }
-  
+
   /** Method that suppress {@link IOException} from {@link ByteBufferInput#readUTF()}. */
   public static String readUTF(ByteBufferInput in) {
     try { return in.readUTF(); }
     catch (Exception e) { throw new RuntimeException(e); }
   }
-  
+
   /** Method that suppress {@link IOException} from {@link ByteBufferOutput#writeUTF(String)}. */
   public static void writeUTF(ByteBufferOutput in, String str) {
     try { in.writeUTF(str); }
     catch (Exception e) { throw new RuntimeException(e); }
   }
-  
+
   public static String formattedClassName(Class<?> clazz) {
     return insertSpaces(clazz.getSimpleName());
   }

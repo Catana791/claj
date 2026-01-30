@@ -33,12 +33,12 @@ public class Autosaver implements ApplicationListener {
   public void add(Saveable saveable) {
     add(saveable, SavePriority.normal);
   }
-  
+
   public void add(Saveable saveable, SavePriority priority) {
     remove(saveable);
     priority.saves.add(saveable);
   }
-  
+
   public void remove(Saveable saveable) {
     for (SavePriority p : SavePriority.all) {
       if (p.saves.remove(saveable)) break;
@@ -69,20 +69,20 @@ public class Autosaver implements ApplicationListener {
     }
     return null;
   }
-  
+
   public boolean saveNeeded() {
     for (SavePriority p : SavePriority.all) {
       if (p.saves.contains(Saveable::modified)) return true;
     }
     return false;
   }
-  
+
   /** Save all registered things now, only if modified. */
   public boolean save() {
     if (!saveNeeded()) return false;
     for (SavePriority p : SavePriority.all) {
       p.saves.each(Saveable::modified, s -> {
-        try { s.save(); } 
+        try { s.save(); }
         catch (Throwable t) {
           Log.err("Failed to save " + s.name(), t);
           if (errorHandler != null) errorHandler.get(s, t);
@@ -104,27 +104,27 @@ public class Autosaver implements ApplicationListener {
     save();
   }
 
-      
+
   /** Defines a things that can be saved by the {@link Autosaver}. */
-  public static interface Saveable {
+  public interface Saveable {
     /** Used for logging. */
     String name();
     boolean modified();
     void save();
   }
-  
-  
+
+
   /** Defines the order to save things. */
-  public static enum SavePriority {
+  public enum SavePriority {
     /** Highest save priority. Commonly the things that manages settings. */
     high,
     /** Default save priority. Commonly for settings things. */
     normal,
     /** Lowest save priority, for things that should be saved last. */
     low;
-    
+
     static final SavePriority[] all = values();
-    // More simple to store the saveable things here. 
+    // More simple to store the saveable things here.
     // Because the priority should not be modified after registration.
     final Seq<Saveable> saves = new Seq<>();
   }

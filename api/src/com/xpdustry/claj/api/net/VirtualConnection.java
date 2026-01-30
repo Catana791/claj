@@ -28,7 +28,7 @@ import arc.net.EndPoint;
 import arc.net.NetListener;
 
 import com.xpdustry.claj.common.net.DispatchListener;
-import com.xpdustry.claj.common.util.AddressHasher;
+import com.xpdustry.claj.common.util.AddressUtil;
 
 
 /**
@@ -66,7 +66,7 @@ public class VirtualConnection extends Connection {
   public VirtualConnection(ProxyClient proxy, int id, long addressHash) {
     this.proxy = proxy;
     this.id = id;
-    this.remoteAddress = new InetSocketAddress(AddressHasher.generate(addressHash), proxy.connectTcpPort);
+    this.remoteAddress = new InetSocketAddress(AddressUtil.generate(addressHash), proxy.connectTcpPort);
   }
 
   @Override

@@ -17,14 +17,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.xpdustry.claj.server.net;
-
-import arc.net.NetSerializer;
-import arc.net.Server;
+package com.xpdustry.claj.common.packets;
 
 
-public class RelayServer extends Server {
-  public RelayServer(int writeBufferSize, int objectBufferSize, NetSerializer serializer) {
-    super(writeBufferSize, objectBufferSize, serializer);
-  }
+public class RoomStateRequestPacket implements Packet {
+  public static final RoomStateRequestPacket instance = new RoomStateRequestPacket();
 }
