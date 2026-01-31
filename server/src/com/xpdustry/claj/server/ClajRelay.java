@@ -67,8 +67,7 @@ public class ClajRelay extends Server implements ApplicationListener {
 
   protected final ServerReceiver receiver;
   /** To easily get the room of a connection. */
-  protected final IntMap<Long> conToRoom = new IntMap<>();
-
+  public final IntMap<Long> conToRoom = new IntMap<>();
   /** List of created rooms. */
   public final LongMap<ClajRoom> rooms = new LongMap<>();
   /** Read/Write speed. */
@@ -271,7 +270,7 @@ public class ClajRelay extends Server implements ApplicationListener {
                  Strings.longToBase64(p.roomId));
         return;
       // Limit to avoid room searching
-      } else if (!con.joinRate.allow(60000L, ClajConfig.joinLimit)) {
+      } else if (ClajConfig.joinLimit > 0 && !con.joinRate.allow(60000L, ClajConfig.joinLimit)) {
         // Act same way as not found
         rejectRoomJoin(con, room, RejectReason.roomNotFound);
         Log.warn("Connection @ tried to join the room @ but was rate limited.", con.sid, room.sid);

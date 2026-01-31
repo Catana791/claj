@@ -162,7 +162,7 @@ public class ClajRoom implements NetListener {
 
     if (con != null && con.isConnected()) {
       con.send(wrap.raw, wrap.isTCP);
-      transferredPackets.addUploadMark();
+      transferredPackets.uploadMark();
 
     // Notify that this connection doesn't exist, this case normally never happen
     } else if (host.isConnected()) {
@@ -184,7 +184,7 @@ public class ClajRoom implements NetListener {
     p.conID = connection.getID();
     p.raw = raw;
     host.send(p);
-    transferredPackets.addDownloadMark();
+    transferredPackets.downloadMark();
   }
 
   /** Notifies the host of an idle connection. */

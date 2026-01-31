@@ -583,4 +583,20 @@ public class Strings extends arc.util.Strings {
   public static String formattedClassName(Class<?> clazz) {
     return insertSpaces(clazz.getSimpleName());
   }
+
+  public static String formatBytes(long v) {
+    return formatSize(v, "B");
+  }
+
+  public static String formatSize(long value, String unit) {
+    boolean negated = false;
+    if (value < 0) {
+      negated = true;
+      value = -value;
+    }
+    if (value < 1024) return (negated ? '-' + value : value) + ' ' + unit;
+    int z = (63 - Long.numberOfLeadingZeros(value)) / 10;
+    return String.format((negated ? "-%.1f %s" : "%.1f %s") + unit,
+                         Math.scalb((double)value, z * -10), " KMGTPE".charAt(z));
+  }
 }

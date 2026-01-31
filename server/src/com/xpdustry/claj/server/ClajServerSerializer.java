@@ -62,7 +62,7 @@ public class ClajServerSerializer implements NetSerializer, FrameworkSerializer 
 
   @Override
   public Object read(ByteBuffer buffer) {
-    if (networkSpeed != null) networkSpeed.addDownloadMark(buffer.remaining());
+    if (networkSpeed != null) networkSpeed.downloadMark(buffer.remaining());
     read.buffer = buffer;
 
     return switch (buffer.get()) {
@@ -109,6 +109,6 @@ public class ClajServerSerializer implements NetSerializer, FrameworkSerializer 
       packet.write(write);
     }
 
-    if (networkSpeed != null) networkSpeed.addUploadMark(buffer.position() - lastPos);
+    if (networkSpeed != null) networkSpeed.uploadMark(buffer.position() - lastPos);
   }
 }

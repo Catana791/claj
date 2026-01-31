@@ -19,42 +19,60 @@
 
 package com.xpdustry.claj.server.util;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import arc.math.WindowedMean;
 import arc.util.Time;
 
 
-/** Calculate speed of an arbitrary thing, per seconds. E.g. network speed; in bytes per seconds. */
+/** Calculate speed of an arbitrary thing, per seconds. E.g. network speed; in bytes per seconds. (thread-safe)*/
 public class NetworkSpeed {
   protected final WindowedMean upload, download;
-  protected long lastUpload, lastDownload, uploadAccum, downloadAccum;
+  protected volatile long lastUpload, lastDownload;
+  protected final AtomicLong uploadAccum, downloadAccum, totalUpload, totalDownload;
 
   public NetworkSpeed(int windowSec) {
     upload = new WindowedMean(windowSec);
     download = new WindowedMean(windowSec);
+    uploadAccum = new AtomicLong();
+    downloadAccum = new AtomicLong();
+    totalUpload = new AtomicLong();
+    totalDownload = new AtomicLong();
+    long now = Time.millis();
+    lastUpload = now;
+    lastDownload = now;
   }
 
-  public void addDownloadMark() { addDownloadMark(1); }
-  public void addDownloadMark(int count) {
-    if (Time.timeSinceMillis(lastDownload) >= 1000) {
-      lastDownload = Time.millis();
+  public void downloadMark() { downloadMark(1); }
+  public void downloadMark(int count) {
+    long time = Time.millis();
+    if (time - lastDownload >= 1000) {
       synchronized (download) {
-        download.add(downloadAccum);
-        downloadAccum = 0;
+        // Fill holes between calls
+        while (time - lastDownload >= 1000) {
+          download.add(downloadAccum.getAndSet(0));
+          lastDownload += 1000;
+        }
       }
     }
-    downloadAccum += count;
+    downloadAccum.getAndAdd(count);
+    totalDownload.getAndAdd(count);
   }
 
-  public void addUploadMark() { addUploadMark(1); }
-  public void addUploadMark(int count) {
-    if (Time.timeSinceMillis(lastUpload) >= 1000) {
-      lastUpload = Time.millis();
+  public void uploadMark() { uploadMark(1); }
+  public void uploadMark(int count) {
+    long time = Time.millis();
+    if (time - lastUpload >= 1000) {
       synchronized (upload) {
-        upload.add(uploadAccum);
-        uploadAccum = 0;
+        // Fill holes between calls
+        while (time - lastUpload >= 1000) {
+          upload.add(uploadAccum.getAndSet(0));
+          lastUpload += 1000;
+        }
       }
     }
-    uploadAccum += count;
+    uploadAccum.getAndAdd(count);
+    totalUpload.getAndAdd(count);
   }
 
   /** Number of things per second. E.g. bytes per seconds */
@@ -69,5 +87,15 @@ public class NetworkSpeed {
     synchronized (upload) {
       return upload.mean();
     }
+  }
+
+  /** Total number of things. E.g. total bytes */
+  public long totalDownload() {
+    return totalDownload.get();
+  }
+
+  /** Total number of things. E.g. total bytes */
+  public long totalUpload() {
+    return totalUpload.get();
   }
 }
