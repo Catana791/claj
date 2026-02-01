@@ -32,6 +32,7 @@ public class ClajProxyManager {
   protected final ClajProxy[] proxies;
   protected final boolean[] reserved;
 
+  public ClajProxyManager(ClajProvider provider) { this(provider, 1); }
   public ClajProxyManager(ClajProvider provider, int workers) {
     this.workers = workers;
     this.provider = provider;

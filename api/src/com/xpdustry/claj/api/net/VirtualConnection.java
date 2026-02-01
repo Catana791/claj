@@ -53,13 +53,12 @@ public class VirtualConnection extends Connection {
   protected String name;
 
   /**
-   * A virtual connection is always connected until we closing it,
-   * so the proxy will notify the server to close the connection in turn,
-   * or when the server notifies that the connection has been closed.
-   * <p>
-   * {@link arc.net.Connection#isConnected}.
+   * A virtual connection is always connected until we closing it. <br>
+   * The proxy will notify the server to close this connection too,
+   * or will quietly close it if requested by the server.
    */
   private volatile boolean isConnected = true;
+  //TODO: make idling calculated by the host, not the server, to save bandwidth.
   /** The server will notify if the client is idling. */
   private volatile boolean isIdling = true;
 

@@ -178,7 +178,8 @@ public class RoomSettingsDialog extends BaseDialog {
     isPublic.setChecked(Core.settings.getBool("claj-room-public", false));
     isProtected.setChecked(Core.settings.getBool("claj-room-protected", false));
     autoHost.setChecked(Core.settings.getBool("claj-autohost", false));
-    playerLimit.setValue(Vars.netServer.admins.getPlayerLimit());
+    int playerlimit = getPlayerLimit();
+    playerLimit.setValue(playerlimit);
 
     roomName.setText(Vars.player.name);
     ClajProxy proxy = Claj.get().proxies.get();
@@ -191,7 +192,7 @@ public class RoomSettingsDialog extends BaseDialog {
       roomId.setText("------------");
     }
     setPassword((short)Core.settings.getInt("claj-room-password", 0));
-    String limit = Vars.netServer.admins.getPlayerLimit() <= 0 ? "" : "/" + Vars.netServer.admins.getPlayerLimit();
+    String limit = playerlimit <= 0 ? "" : "/" + playerlimit;
     players.setText(Core.settings.getInt("totalPlayers", Groups.player.size()) + limit);
     playersClaj.setText((proxy instanceof MindustryClajProxy mp ? mp.getMindustryConnectionsSize() : "??") + limit);
     if (proxy.isConnected()) {
@@ -206,8 +207,21 @@ public class RoomSettingsDialog extends BaseDialog {
     Core.settings.put("claj-room-protected", isProtected.isChecked());
     Core.settings.put("claj-room-password", (int)lastPassword); // =/
     Core.settings.put("claj-autohost", autoHost.isChecked());
-    Claj.get().proxies.get().setDefaultConfiguration(isPublic.isChecked(), isProtected.isChecked(), lastPassword);
-    Vars.netServer.admins.setPlayerLimit(
+    Core.settings.put("claj-playerlimit",
       (int)Mathf.clamp(playerLimit.getValue(), playerLimit.getMinValue(), playerLimit.getMaxValue()));
+
+    Claj.get().proxies.get().setDefaultConfiguration(isPublic.isChecked(), isProtected.isChecked(), lastPassword);
+  }
+
+  public void setSettings() {
+    Claj.get().proxies.get().setDefaultConfiguration(
+      Core.settings.getBool("claj-room-public", false),
+      Core.settings.getBool("claj-room-protected", false),
+      (short)Core.settings.getInt("claj-room-password", 0)
+    );
+  }
+
+  public int getPlayerLimit() {
+    return Core.settings.getInt("claj-playerlimit", Vars.netServer.admins.getPlayerLimit());
   }
 }

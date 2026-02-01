@@ -75,13 +75,16 @@ public class ClajVars {
     };
 
     Log.logger = (level, text) -> {
-      int i = 0, nl = text.indexOf('\n');
-      while (nl >= 0) {
-        log.log(level, text.substring(i, nl));
-        i = nl + 1;
-        nl = text.indexOf('\n', i);
+      // Avoid log mixing
+      synchronized (Log.logger) {
+        int i = 0, nl = text.indexOf('\n');
+        while (nl >= 0) {
+          log.log(level, text.substring(i, nl));
+          i = nl + 1;
+          nl = text.indexOf('\n', i);
+        }
+        log.log(level, i == 0 ? text : text.substring(i));
       }
-      log.log(level, i == 0 ? text : text.substring(i));
     };
 
     Log.formatter = (text, useColors, arg) -> {

@@ -181,9 +181,9 @@ public class ClajRelay extends Server implements ApplicationListener {
       if (room == null || con == null) return;
 
       conToRoom.remove(con.id);
-      room.disconnected(c, p.reason);
+      room.disconnected(con, p.reason);
       // Remove the room if it was the host
-      if (room.isHost(c)) {
+      if (room.isHost(con)) {
         for (ClajConnection cc : room.clients.values()) conToRoom.remove(cc.id);
         rooms.remove(room.id);
         Log.info("Room @ closed because connection @ (the host) has disconnected.", room.sid, con.sid);
@@ -222,7 +222,7 @@ public class ClajRelay extends Server implements ApplicationListener {
         return;
       }
 
-      room = new ClajRoom(newRoomId(), con, p.type);
+      room = newRoom(con, p.type);
       rooms.put(room.id, room);
       conToRoom.put(con.id, room.id);
       room.create();
@@ -520,6 +520,10 @@ public class ClajRelay extends Server implements ApplicationListener {
     do { id = Mathf.rand.nextLong(); }
     while (id == -1 || rooms.containsKey(id));
     return id;
+  }
+
+  public ClajRoom newRoom(ClajConnection host, ClajType type) {
+    return new ClajRoom(newRoomId(), host, type);
   }
 
   public ClajRoom get(long roomId) {

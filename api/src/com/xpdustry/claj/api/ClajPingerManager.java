@@ -38,6 +38,7 @@ public class ClajPingerManager {
   protected final boolean[] reserved;
   protected final Queue<Cons2<ClajPinger, Runnable>> queue = new Queue<>();
 
+  public ClajPingerManager(ClajProvider provider) { this(provider, 1); }
   public ClajPingerManager(ClajProvider provider, int workers) {
     this.workers = workers;
     this.provider = provider;
@@ -72,7 +73,7 @@ public class ClajPingerManager {
     return pingers[index];
   }
 
-  public ClajPinger ensurePingerProxyStarted(int index) {
+  public ClajPinger ensurePingerPingerStarted(int index) {
     ClajPinger pinger = get(index);
     if (!pinger.isRunning()) Threads.daemon(getPingerName(index), pinger);
     return pinger;
@@ -165,13 +166,15 @@ public class ClajPingerManager {
 
   protected void submit(int index, Cons2<ClajPinger, Runnable> task) {
     reserved[index] = true;
-    ClajPinger pinger = get(index);
-    Runnable t = () -> task.get(pinger, () -> {
-      //arc.util.Log.info("pinger @ finished. queue empty? @", index, queue.isEmpty());
-      if (pinger.canceling || queue.isEmpty()) reserved[index] = false;
-      // Keep reserved, execute next
-      else submit(index, queue.removeFirst());
-    });
+    Runnable t = () -> {
+      ClajPinger pinger = ensurePingerPingerStarted(index);
+      task.get(pinger, () -> {
+        //arc.util.Log.info("pinger @ finished. queue empty? @", index, queue.isEmpty());
+        if (pinger.canceling || queue.isEmpty()) reserved[index] = false;
+        // Keep reserved, execute next
+        else submit(index, queue.removeFirst());
+      });
+    };
 
     if (provider.getExecutor() == null) t.run();
     else provider.getExecutor().submit(t);

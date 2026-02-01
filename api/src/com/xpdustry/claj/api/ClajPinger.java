@@ -403,7 +403,7 @@ public class ClajPinger extends Client {
   protected void requestRoomJoin(long roomId, boolean withPassword, short password) {
     RoomJoinPacket p = new RoomJoinPacket();
     p.roomId = roomId;
-    p.withPassword = withPassword;
+    p.withPassword = withPassword && password != NO_PASSWORD;
     p.password = password;
     p.type = provider.getType();
     sendTCP(p);

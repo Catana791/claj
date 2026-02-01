@@ -138,9 +138,16 @@ public abstract class ProxyClient extends Client {
   }
 
   @Override
+  public void close() {
+    closeAllConnections(DcReason.closed);
+    super.close();
+  }
+
+  @Override
   public void close(DcReason reason) {
     // We cannot communicate with the server anymore, so close all virtual connections
-    if (isConnected()) closeAllConnections(reason);
+    closeAllConnections(reason);
+    super.close(reason);
   }
 
   public void closeAllConnections(DcReason reason) {
@@ -148,19 +155,19 @@ public abstract class ProxyClient extends Client {
     clearConnections();
   }
 
-  public void addConnection(VirtualConnection con) {
+  protected void addConnection(VirtualConnection con) {
     connectionsMap.put(con.getID(), con);
     // Connections are added at the start instead of end
     //connections = Structs.add(connections, con);
     connections = Structs.insert(connections, 0, con);
   }
 
-  public void removeConnection(VirtualConnection con) {
+  protected void removeConnection(VirtualConnection con) {
     connectionsMap.remove(con.getID());
     connections = Structs.remove(connections, con);
   }
 
-  public void clearConnections() {
+  protected void clearConnections() {
     connectionsMap.clear();
     connections = new VirtualConnection[0];
   }
@@ -188,18 +195,16 @@ public abstract class ProxyClient extends Client {
   }
 
   public void close(VirtualConnection con, DcReason reason) {
-    boolean wasConnected = con.isConnected();
-    con.setConnected0(false);
-    if(!wasConnected) return;
-
+    closeQuietly(con, reason);
     close(con.getID(), reason);
-    con.notifyDisconnected0(reason);
   }
 
+  /** Close connection without notify the server. */
   public void closeQuietly(VirtualConnection con, DcReason reason) {
     boolean wasConnected = con.isConnected();
     con.setConnected0(false);
     if(wasConnected) con.notifyDisconnected0(reason);
+    removeConnection(con);
   }
 
   // end region
@@ -218,7 +223,7 @@ public abstract class ProxyClient extends Client {
 
   protected VirtualConnection conDisconnected(int conId, DcReason reason) {
     VirtualConnection con = getConnection(conId);
-    if (con != null) con.notifyDisconnected0(reason);
+    if (con != null) closeQuietly(con, reason);
     return con;
   }
 

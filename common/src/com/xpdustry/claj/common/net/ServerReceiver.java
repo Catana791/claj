@@ -111,7 +111,6 @@ public class ServerReceiver implements NetListener {
   @SuppressWarnings("unchecked")
   public void received(Connection connection, Packet packet) {
     try {
-      if (!connection.isConnected()) return;
       packet.handled();
 
       if (packet instanceof StreamPacket stream) {

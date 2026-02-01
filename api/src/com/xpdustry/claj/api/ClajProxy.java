@@ -148,7 +148,9 @@ public class ClajProxy extends ProxyClient {
   }
 
   public void closeRoom() {
+    if (!roomCreated()) return;
     sendTCP(makeRoomClosePacket());
+    runRoomClose(null);
   }
 
   public void requestRoomId() {

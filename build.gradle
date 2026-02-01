@@ -31,7 +31,7 @@ allprojects {
   }
 
   // Force java 1.8
-  tasks.withType(JavaCompile) {
+  compileJava {
     targetCompatibility = JavaVersion.VERSION_1_8
     sourceCompatibility = JavaVersion.VERSION_17
     options.encoding = "UTF-8"

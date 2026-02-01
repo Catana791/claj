@@ -41,9 +41,9 @@ public class Claj {
     return INSTANCE;
   }
 
-  /** Initializes the global CLaJ manager using {@code 1} proxy and {@code 4} pingers. */
+  /** Initializes the global CLaJ manager using {@code 1} proxy and {@code 2} pingers. */
   public static Claj init(ClajProvider provider) {
-    return init(provider, 1, 4);
+    return init(provider, 1, 2);
   }
 
   /**

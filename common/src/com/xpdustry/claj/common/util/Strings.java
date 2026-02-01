@@ -594,7 +594,7 @@ public class Strings extends arc.util.Strings {
       negated = true;
       value = -value;
     }
-    if (value < 1024) return (negated ? '-' + value : value) + ' ' + unit;
+    if (value < 1024) return (negated ? "-" + value : value) + " " + unit;
     int z = (63 - Long.numberOfLeadingZeros(value)) / 10;
     return String.format((negated ? "-%.1f %s" : "%.1f %s") + unit,
                          Math.scalb((double)value, z * -10), " KMGTPE".charAt(z));

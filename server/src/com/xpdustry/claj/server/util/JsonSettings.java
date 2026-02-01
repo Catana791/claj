@@ -143,7 +143,7 @@ public class JsonSettings implements Autosaver.Saveable {
 
   @Override
   public boolean modified() {
-    return modified || !exists();
+    return modified;// || !exists();
   }
 
   /** Loads all values. */

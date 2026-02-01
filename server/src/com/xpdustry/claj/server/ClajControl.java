@@ -113,7 +113,8 @@ public class ClajControl extends CommandHandler implements ApplicationListener {
     });
 
     register("status", "Display status of server and rooms.", args -> {
-      Log.info("@ rooms / @ clients.", ClajVars.relay.rooms.size, ClajVars.relay.conToRoom.size);
+      Log.info("@ rooms / @ client" + (ClajVars.relay.conToRoom.size < 2 ? "." : "s."), ClajVars.relay.rooms.size,
+               ClajVars.relay.conToRoom.size);
       Log.info("@ FPS, @ used.", Core.graphics.getFramesPerSecond(), Strings.formatBytes(Core.app.getJavaHeap()));
       NetworkSpeed net = ClajVars.relay.networkSpeed;
       if (net != null) {

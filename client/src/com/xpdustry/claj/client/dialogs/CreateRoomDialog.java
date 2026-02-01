@@ -287,6 +287,8 @@ public class CreateRoomDialog extends BaseDialog {
     Vars.ui.loadfrag.show("@claj.manage.creating-room");
     // Disconnect the client if the room is not created after 10 seconds
     Timer.Task t = Timer.schedule(this::closeRoom, 10);
+
+    ClajUi.settings.setSettings();
     Claj.get().createRoom(selected.address, selected.port, l -> {
       Vars.ui.loadfrag.hide();
       t.cancel();
@@ -294,8 +296,8 @@ public class CreateRoomDialog extends BaseDialog {
     }, c -> {
       Vars.ui.loadfrag.hide();
       t.cancel();
-      if (c != null) showError(c);
-      else if (link == null) Vars.ui.showErrorMessage("@claj.manage.room-creation-failed");
+      if (link == null) Vars.ui.showErrorMessage("@claj.manage.room-creation-failed");
+      else showError(c);
       link = null;
     }, e -> {
       Vars.net.handleException(e);
@@ -304,17 +306,17 @@ public class CreateRoomDialog extends BaseDialog {
   }
 
   public void showError(CloseReason reason) {
+    if (reason == null) return;
     String key = "@claj.room." + Strings.camelToKebab(reason.name());
     switch (reason) {
       case closed, serverClosed -> Vars.ui.showText("", key);
       default -> Vars.ui.showErrorMessage(key);
     }
-
   }
 
   public void closeRoom() {
     Claj.get().proxies.closeRoom();
-    link = null;
+    //link = null;
   }
 
   public void copyLink() {

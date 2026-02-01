@@ -228,10 +228,12 @@ public class BrowserDialog extends BaseDialog {
           label.clear();
           ping.image(Icon.warning, Color.yellow).padBottom(3).left().get().scaleBy(-0.22f);
           label.add("@claj.browser.incompatible");
+
         }
         if (Vars.mobile) ping.row();
         ping.add(s.ping + "ms", Color.lightGray, 0.91f).left();
         if (server.compatible) listRooms(server, dest, done, error);
+        else done.run();
       }, e -> {
         ping.clear();
         label.clear();
