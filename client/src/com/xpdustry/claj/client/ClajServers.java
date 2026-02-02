@@ -40,7 +40,7 @@ public class ClajServers {
       online.clear();
       for (ObjectMap.Entry<String, Jval> e : list)
         online.put(e.key, e.value.asString());
-      //online.putAll(custom);
+      online.putAll(custom);
       Core.app.post(done);
     }, t -> Core.app.post(() -> failed.get(t)));
     /*

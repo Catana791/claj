@@ -29,7 +29,7 @@ import com.xpdustry.claj.common.status.RejectReason;
 import com.xpdustry.claj.common.status.ServerState;
 
 
-// FIXME: this works pretty well, but keep refreshing the server list will fill up pingers, if a server is unreachable.
+// FIXME: it's not perfect, keep refreshing servers will fill up pingers, if one is unreachable.
 public class ClajPingerManager {
   protected final int workers;
   protected final ClajProvider provider;
@@ -123,7 +123,7 @@ public class ClajPingerManager {
 
   /** Dispose all pingers. */
   public void dispose() {
-    stop();
+    cancel();
     for (ClajPinger pinger : pingers) {
       if (pinger == null) continue;
       pinger.stop();
@@ -132,12 +132,21 @@ public class ClajPingerManager {
     }
   }
 
-  /** Stops all pingers and cancel the queue. */
+  /** Stop all pingers and cancel the queue. */
   public void stop() {
+    cancel();
+    for (ClajPinger pinger : pingers) {
+      if (pinger == null) continue;
+      pinger.stop();
+    }
+  }
+
+  /** Cancel the queue and current tasks. */
+  public void cancel() {
     //arc.util.Log.info("manager start: @, @", Thread.currentThread().getName(), System.currentTimeMillis());
     for (ClajPinger pinger : pingers) {
       if (pinger == null) continue;
-      pinger.canceling = true;
+      pinger.setCancelState(true);
       pinger.close(); // be sure
     }
     //arc.util.Log.info("manager in: @, @", Thread.currentThread().getName(), System.currentTimeMillis());
@@ -152,7 +161,7 @@ public class ClajPingerManager {
     for (ClajPinger pinger : pingers) {
       if (pinger == null) continue;
       pinger.close(); // be sure
-      pinger.canceling = false;
+      pinger.setCancelState(false);
     }
     //arc.util.Log.info("manager out: @, @", Thread.currentThread().getName(), System.currentTimeMillis());
   }

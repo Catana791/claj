@@ -132,12 +132,21 @@ public class JoinDialog extends BaseDialog {
     Time.runTask(2f, () -> {
       if (ignore[0]) return;
       Claj.get().joinRoom(lastLink = link, lastPassword = password, () -> {
+        // No need to run pingers anymore, it's just waste...
+        Timer.schedule(() -> {
+          if (Vars.net.client()) Claj.get().stopPingers();
+        }, 60);
+
         //TODO: run preconnect event?
         Vars.ui.join.hide();
         ClajUi.browser.hide();
         hide();
-      }, r -> joinError(link, r), e -> {
-        if (!ignore[0]) Vars.net.handleException(e);
+      }, r -> joinError(link, r),
+      e -> {
+        if (ignore[0]) return;
+        String msg = e.getMessage();
+        if (msg != null && msg.contains("timed out")) joinError(link, RejectReason.roomNotFound);
+        else Vars.net.handleException(e);
       });
     });
   }
@@ -145,13 +154,14 @@ public class JoinDialog extends BaseDialog {
   public void joinError(ClajLink link, RejectReason reason) {
     Vars.ui.loadfrag.hide();
     switch (reason) {
-      default:
+      case passwordRequired:
+      case invalidPassword:
         ClajUi.password.show(pass -> joinRoom(link, pass));
         if (reason == RejectReason.passwordRequired) return;
         break;
       case serverClosing:
         hide();
-      case roomNotFound:
+      default:
     }
     Vars.ui.showErrorMessage("@claj.reject." + Strings.camelToKebab(reason.name()));
   }

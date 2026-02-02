@@ -21,6 +21,7 @@ package com.xpdustry.claj.api.net;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.channels.ClosedSelectorException;
 
 import arc.func.Cons;
 import arc.net.*;
@@ -54,7 +55,7 @@ public abstract class ProxyClient extends Client {
   /** For faster iteration. */
   protected VirtualConnection[] connections = {};
   protected final NetListener conListener;
-  protected volatile boolean shutdown = true, ignoreExceptions, connecting;
+  protected volatile boolean shutdown = true, starting, ignoreExceptions, connecting;
   protected ClientReceiver receiver;
 
   public ProxyClient(int writeBufferSize, int objectBufferSize, NetSerializer serialization, NetListener conListener,
@@ -90,35 +91,43 @@ public abstract class ProxyClient extends Client {
    */
   @Override
   public void run() {
-    shutdown = false;
-    while(!shutdown) {
-      try {
-        update(250);
-        // update idle
-        for (VirtualConnection c : connections) {
-          if (c.isIdle()) c.notifyIdle0();
-        }
-      } catch (IOException ex) {
-        close();
-      } catch (ArcNetException ex) {
-        if (!ignoreExceptions) {
-          // Reflection is needed because the field is package-protected
-          Reflect.set(Connection.class, this, "lastProtocolError", ex);
+    shutdown = starting = false;
+    try {
+      while(!shutdown) {
+        try {
+          update(250);
+          // update idle
+          for (VirtualConnection c : connections) {
+            if (c.isIdle()) c.notifyIdle0();
+          }
+        } catch (ClosedSelectorException e) {
+          break;
+        } catch (IOException e) {
           close();
-          throw ex;
-        } else Log.err("Ignored Exception", ex);
+        } catch (Exception e) {
+          if (!ignoreExceptions) {
+            // Reflection is needed because the field is package-protected
+            if (e instanceof ArcNetException net)
+              Reflect.set(Connection.class, this, "lastProtocolError", net);
+            close();
+            throw e;
+          } else Log.err("Ignored Exception", e);
+          if (!(e instanceof ArcNetException)) break;
+        }
       }
-    }
+    } finally { shutdown = true; }
   }
 
   @Override
   public void start() {
+    if (starting) return;
     if (getUpdateThread() != null) {
       shutdown = true;
       try { getUpdateThread().join(5000); }
       catch (InterruptedException ignored) {}
       getUpdateThread().interrupt(); // force stop
     }
+    starting = true;
     super.start();
   }
 
@@ -126,6 +135,7 @@ public abstract class ProxyClient extends Client {
   public void stop() {
     if(shutdown) return;
     super.stop();
+    starting = false;
     shutdown = true;
   }
 

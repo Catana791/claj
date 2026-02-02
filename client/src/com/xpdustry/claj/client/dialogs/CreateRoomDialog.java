@@ -140,14 +140,14 @@ public class CreateRoomDialog extends BaseDialog {
   }
 
   public void refreshAll() {
-    Claj.get().stopPingers(); // cancel previous pings
+    Claj.get().cancelPingers(); // cancel previous pings
     refreshCustom(false);
     refreshOnline(false);
   }
 
   public void refreshCustom() { refreshCustom(true); }
   public void refreshCustom(boolean cancelPrevious) {
-    if (cancelPrevious) Claj.get().stopPingers();
+    if (cancelPrevious) Claj.get().cancelPingers();
     selected = null;
     ClajServers.loadCustom();
     setupServers(ClajServers.custom, custom,
@@ -169,7 +169,7 @@ public class CreateRoomDialog extends BaseDialog {
   public void refreshOnline() { refreshOnline(true); }
   public void refreshOnline(boolean cancelPrevious) {
     if (refreshingOnline) return; // Avoid to re-trigger a refresh while refreshing
-    if (cancelPrevious) Claj.get().stopPingers();
+    if (cancelPrevious) Claj.get().cancelPingers();
     refreshingOnline = true;
     selected = null;
 

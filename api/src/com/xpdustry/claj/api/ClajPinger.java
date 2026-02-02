@@ -44,20 +44,24 @@ import com.xpdustry.claj.common.status.*;
  */
 public class ClajPinger extends Client {
   public static final short NO_PASSWORD = -1;
-  public static int defaultTimeout = 5000; //ms
-  public static int pingTimeout = 5000; //ms
+  /** In ms. */
+  public static int connectTimeout = 5 * 1000,
+                    pingTimeout = connectTimeout,
+                    joinTimeout = connectTimeout,
+                    infoTimeout = 10 * 1000,
+                    listTimeout = 30 * 1000;
 
   protected final ClajProvider provider;
   protected String connectHost;
   protected int connectPort;
-  protected volatile boolean shutdown = true, connecting;
+  protected volatile boolean shutdown = true, starting, connecting;
   /** If {@code true}, current and future operations will be canceled. */
   public volatile boolean canceling;
+  protected volatile long time, timeout;
 
   protected Cons<ServerState> pingSuccess;
   protected Cons<Exception> pingFailed;
-  protected volatile long time, timeout;
-  protected volatile boolean pingReceived, pinging;
+  protected volatile boolean pinging;
 
   protected Cons<Seq<ClajRoom<?>>> listInfo;
   protected Cons<Exception> listFailed;
@@ -104,24 +108,26 @@ public class ClajPinger extends Client {
   }
 
   @Override
-  public void update(int timeout) {
+  public void update(int t) {
     try {
-      super.update(canceling ? 0 : timeout);
-      if (pinging && !pingReceived && System.currentTimeMillis() - time >= pingTimeout)
-        runPingFailed(new RuntimeException("Ping timed out"));
+      super.update(canceling ? 0 : t);
+      if (timeout > 0 && System.currentTimeMillis() >= timeout) timeout();
       if (canceling) close();
     } catch (Exception e) { ArcNet.handleError(e); }
   }
 
   @Override
   public void run() {
-    shutdown = false;
-    super.run();
+    shutdown = starting = false;
+    try { super.run(); }
+    finally { shutdown = true; }
   }
 
   @Override
   public void start() {
+    if (starting) return;
     if (getUpdateThread() != null) shutdown = true;
+    starting = true;
     super.start();
   }
 
@@ -129,6 +135,7 @@ public class ClajPinger extends Client {
   public void stop() {
     if(shutdown) return;
     super.stop();
+    starting = false;
     shutdown = true;
   }
 
@@ -143,21 +150,27 @@ public class ClajPinger extends Client {
 
   @Override
   public void close(DcReason reason) {
-    cancel();
+    if (reason == DcReason.closed) cancel();
+    else timeout();
     super.close(reason);
   }
 
+  protected void timeout() {
+    stopTask("timed out");
+    if (connecting) super.close(DcReason.timeout);
+  }
+
   /** Cancel running operation. */
-  public synchronized void cancel() {
-    if (pinging) runPingFailed(new RuntimeException("Ping canceled"));
-    if (listing) runListFailed(new RuntimeException("Room listing canceled"));
-    if (joining) runJoinFailed(new RuntimeException("Room join canceled"));
-    if (infoing) runInfoFailed(new RuntimeException("Room info canceled"));
-    if (connecting) {
-      //Reflect.set(Client.class, this, "tcpRegistered", true);
-      //Reflect.set(Client.class, this, "udpRegistered", true);
-      super.close(DcReason.closed);
-    }
+  public void cancel() {
+    stopTask("canceled");
+    if (connecting) super.close(DcReason.closed);
+  }
+
+  public synchronized void stopTask(String reason) {
+    if (pinging) runPingFailed(new RuntimeException("Ping " + reason));
+    if (listing) runListFailed(new RuntimeException("Room listing " + reason));
+    if (joining) runJoinFailed(new RuntimeException("Room join " + reason));
+    if (infoing) runInfoFailed(new RuntimeException("Room info " + reason));
   }
 
   public boolean isRunning() {
@@ -172,20 +185,31 @@ public class ClajPinger extends Client {
     return pinging || listing || joining || infoing;
   }
 
+  public void setCancelState(boolean cancel) {
+    canceling = cancel;
+  }
+
   // Helpers
   protected <T> void postTask(Cons<T> consumer, T object) { postTask(() -> consumer.get(object)); }
   protected void postTask(Runnable run) { provider.postTask(run); }
 
-  protected synchronized void resetPingState(Cons<ServerState> success, Cons<Exception> failed) {
+  public void setRequestTimeout(int out) {
+    if (out <= 0) {
+      time = timeout = 0;
+      return;
+    }
     time = System.currentTimeMillis();
+    timeout = time + out;
+  }
+
+  protected synchronized void resetPingState(Cons<ServerState> success, Cons<Exception> failed) {
     pingSuccess = success;
     pingFailed = failed;
-    pingReceived = false;
+    setRequestTimeout(0);
     pinging = false;
   }
 
   protected void runPingSuccess(int version) {
-    pingReceived = true;
     if (pingSuccess != null) {
       int ping = (int)(System.currentTimeMillis() - time);
       postTask(pingSuccess, new ServerState(connectHost, connectPort, version, ping));
@@ -204,25 +228,26 @@ public class ClajPinger extends Client {
   protected synchronized <T> void resetListState(Cons<Seq<ClajRoom<T>>> rooms, Cons<Exception> failed) {
     listInfo = (Cons)rooms;
     listFailed = failed;
+    setRequestTimeout(0);
     listing = false;
   }
 
   protected void runListInfo(int size, long[] rooms, boolean[] isProtected, ByteBuffer[] states) {
     // Avoid creating useless objects if the callback is not defined.
-    if (listInfo == null) return;
-    Seq<ClajRoom<?>> roomList = new Seq<>(size);
-    ClajType type = provider.getType();
-    for (int i=0; i<size; i++) {
-      if (rooms[i] == ClajProxy.UNCREATED_ROOM) continue; // ignore invalid rooms
-      roomList.add(new ClajRoom<>(
-        rooms[i], true, isProtected[i],
-        provider.readRoomState(rooms[i], type, states[i]),
-        new ClajLink(connectHost, connectPort, rooms[i]),
-        type
-      ));
+    if (listInfo != null) {
+      Seq<ClajRoom<?>> roomList = new Seq<>(size);
+      ClajType type = provider.getType();
+      for (int i=0; i<size; i++) {
+        if (rooms[i] == ClajProxy.UNCREATED_ROOM) continue; // ignore invalid rooms
+        roomList.add(new ClajRoom<>(
+          rooms[i], true, isProtected[i],
+          provider.readRoomState(rooms[i], type, states[i]),
+          new ClajLink(connectHost, connectPort, rooms[i]),
+          type
+        ));
+      }
+      postTask(listInfo, roomList);
     }
-
-    postTask(listInfo, roomList);
     resetListState(null, null);
     close();
   }
@@ -238,6 +263,7 @@ public class ClajPinger extends Client {
     joinDenied = reject;
     joinFailed = failed;
     requestedRoom = -1;
+    setRequestTimeout(0);
     joining = false;
   }
 
@@ -265,6 +291,7 @@ public class ClajPinger extends Client {
     infoNotFound = notFound;
     infoFailed = failed;
     requestedRoom = -1;
+    setRequestTimeout(0);
     infoing = false;
   }
 
@@ -295,7 +322,7 @@ public class ClajPinger extends Client {
   }
 
   /**
-   * Connect using {@link #defaultTimeout} and same {@code port} for TCP and UDP. <br>
+   * Connect using {@link #connectTimeout} and same {@code port} for TCP and UDP. <br>
    * This also ensures that the client is running before connection, and can be canceled.
    */
   public void connect(String host, int port) throws IOException {
@@ -303,25 +330,25 @@ public class ClajPinger extends Client {
     connecting = true;
     connectHost = host;
     connectPort = port;
-    try { connect(defaultTimeout, host, port, port); }
+    try { connect(connectTimeout, host, port, port); }
     finally { connecting = false; }
   }
 
   public void pingHost(String host, int port, Cons<ServerState> success, Cons<Exception> failed) {
-    close();
+    if (!canceling) {
+      try { connect(host, port); }
+      catch (Exception e) {
+        resetPingState(success, failed);
+        runPingFailed(e);
+        return;
+      }
+    } else close();
     //arc.util.Log.info("pinger: @, @, @", canceling, Thread.currentThread().getName(), System.currentTimeMillis());
     resetPingState(success, failed);
+    setRequestTimeout(pingTimeout);
     pinging = true;
-    if (canceling) {
-      cancel();
-      return;
-    }
-    try { connect(host, port); }
-    catch (Exception e) {
-      runPingFailed(e);
-      return;
-    }
-    requestServerStatus();
+    if (canceling) cancel();
+    else requestServerStatus();
   }
 
   public <T> void requestRoomList(String host, int port, Cons<Seq<ClajRoom<T>>> rooms, Cons<Exception> failed) {
@@ -332,13 +359,13 @@ public class ClajPinger extends Client {
         runListFailed(e);
         return;
       }
-    }
+    } else close();
     resetListState(rooms, failed);
+    setRequestTimeout(listTimeout);
     listing = true;
     if (canceling) cancel();
     else requestRoomList();
   }
-
 
   public void joinRoom(String host, int port, long roomId, Runnable success, Cons<RejectReason> reject,
                        Cons<Exception> failed) {
@@ -359,16 +386,17 @@ public class ClajPinger extends Client {
         runJoinFailed(e);
         return;
       }
-    }
+    } else close();
     resetJoinState(success, reject, failed);
     requestedRoom = roomId;
+    setRequestTimeout(joinTimeout);
     joining = true;
     if (canceling) cancel();
     else requestRoomJoin(roomId, withPassword, password);
   }
 
   public <T> void requestRoomInfo(String host, int port, long roomId, Cons<ClajRoom<T>> info, Runnable notFound,
-                              Cons<Exception> failed) {
+                                  Cons<Exception> failed) {
     if (!canceling) {
       try { connect(host, port); }
       catch (Exception e) {
@@ -376,9 +404,10 @@ public class ClajPinger extends Client {
         runInfoFailed(e);
         return;
       }
-    }
+    } else close();
     resetInfoState(info, notFound, failed);
     requestedRoom = roomId;
+    setRequestTimeout(infoTimeout);
     infoing = true;
     if (canceling) cancel();
     else requestRoomInfo(roomId);

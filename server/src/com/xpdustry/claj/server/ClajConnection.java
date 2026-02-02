@@ -43,6 +43,7 @@ public class ClajConnection {
     this(connection, AddressUtil.get(connection), AddressUtil.encodeId(connection));
   }
 
+  /** Internal. */
   public ClajConnection(Connection connection, String address, String encodedId) {
     this.connection = connection;
     this.address = address;
@@ -56,6 +57,7 @@ public class ClajConnection {
     return connection.isConnected();
   }
 
+  /** Send via TCP. */
   public void send(Object object) { send(object, true); }
   public void send(Object object, boolean reliable) {
     if (!isConnected()) return;

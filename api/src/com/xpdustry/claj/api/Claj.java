@@ -41,9 +41,9 @@ public class Claj {
     return INSTANCE;
   }
 
-  /** Initializes the global CLaJ manager using {@code 1} proxy and {@code 2} pingers. */
+  /** Initializes the global CLaJ manager using {@code 1} proxy and {@code 3} pingers. */
   public static Claj init(ClajProvider provider) {
-    return init(provider, 1, 2);
+    return init(provider, 1, 3);
   }
 
   /**
@@ -83,6 +83,14 @@ public class Claj {
 
   public void closeRooms() {
     proxies.closeAllRooms();
+  }
+
+  public void stopProxies() {
+    proxies.stop();
+  }
+
+  public void cancelPingers() {
+    pingers.cancel();
   }
 
   public void stopPingers() {

@@ -75,7 +75,7 @@ public class Main extends Mod {
 
   public void stopClaj() {
     Claj.get().closeRooms();
-    Claj.get().stopPingers();
+    Claj.get().cancelPingers();
     ClajUi.join.resetLastLink(); // Avoid reconnect to a room after connecting to a normal server
   }
 

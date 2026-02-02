@@ -162,9 +162,19 @@ public class ClajProxyManager {
   public void dispose() {
     for (ClajProxy proxy : proxies) {
       if (proxy == null) continue;
+      proxy.closeRoom();
       proxy.stop();
       try { proxy.dispose(); }
       catch (Exception ignored) {}
+    }
+  }
+
+  /** Close all rooms and stop all proxies. */
+  public void stop() {
+    for (ClajProxy proxy : proxies) {
+      if (proxy == null) continue;
+      proxy.closeRoom();
+      proxy.stop();
     }
   }
 

@@ -174,7 +174,7 @@ public class BrowserDialog extends BaseDialog {
     servers.clear();
     refreshing.clear();
     hosts.clear();
-    Claj.get().stopPingers(); // cancel previous pings and listing
+    Claj.get().cancelPingers(); // cancel previous pings and listing
 
     hosts.table(t -> {
       t.add("@claj.servers.fetching").padRight(3);
