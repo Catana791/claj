@@ -30,6 +30,7 @@ import arc.net.DcReason;
 import arc.net.FrameworkMessage;
 import arc.struct.Seq;
 import arc.util.Reflect;
+import arc.util.io.ByteBufferInput;
 
 import com.xpdustry.claj.common.ClajNet;
 import com.xpdustry.claj.common.net.ClientReceiver;
@@ -52,6 +53,7 @@ public class ClajPinger extends Client {
                     listTimeout = 30 * 1000;
 
   protected final ClajProvider provider;
+  protected final ClientReceiver receiver;
   protected String connectHost;
   protected int connectPort;
   protected volatile boolean shutdown = true, starting, connecting;
@@ -67,9 +69,10 @@ public class ClajPinger extends Client {
   protected Cons<Exception> listFailed;
   protected volatile boolean listing;
 
-  protected Runnable joinSuccess;
+  protected Cons<ByteBuffer> joinSuccess;
   protected Cons<RejectReason> joinDenied;
   protected Cons<Exception> joinFailed;
+  protected RoomJoinRequestPacket lastRequest;
   protected volatile long requestedRoom = -1;
   protected volatile boolean joining;
 
@@ -80,9 +83,11 @@ public class ClajPinger extends Client {
 
   public ClajPinger(ClajProvider provider) {
     super(8192, 8192, new Serializer());
+    // Disable ArcNet timeout, we handle it ourselves
+    setTimeout(0);
     ((Serializer)getSerialization()).set(this);
     this.provider = provider;
-    ClientReceiver receiver = new ClientReceiver(this, null); // no need to delegate to the main thread
+    this.receiver = new ClientReceiver(this, null); // no need to delegate to the main thread
 
     receiver.handle(RoomJoinAcceptedPacket.class, p -> {
       if (p.roomId != -1 && p.roomId == requestedRoom)
@@ -111,7 +116,7 @@ public class ClajPinger extends Client {
   public void update(int t) {
     try {
       super.update(canceling ? 0 : t);
-      if (timeout > 0 && System.currentTimeMillis() >= timeout) timeout();
+      if (isRequestedTimedOut()) timeout();
       if (canceling) close();
     } catch (Exception e) { ArcNet.handleError(e); }
   }
@@ -193,13 +198,19 @@ public class ClajPinger extends Client {
   protected <T> void postTask(Cons<T> consumer, T object) { postTask(() -> consumer.get(object)); }
   protected void postTask(Runnable run) { provider.postTask(run); }
 
+  public boolean isRequestedTimedOut() {
+    return timeout > 0 && System.currentTimeMillis() >= timeout;
+  }
+
   public void setRequestTimeout(int out) {
     if (out <= 0) {
       time = timeout = 0;
+      setTimeout(12000);//default
       return;
     }
     time = System.currentTimeMillis();
     timeout = time + out;
+    setTimeout(out);
   }
 
   protected synchronized void resetPingState(Cons<ServerState> success, Cons<Exception> failed) {
@@ -258,17 +269,19 @@ public class ClajPinger extends Client {
     close();
   }
 
-  protected synchronized void resetJoinState(Runnable success, Cons<RejectReason> reject, Cons<Exception> failed) {
+  protected synchronized void resetJoinState(Cons<ByteBuffer> success, Cons<RejectReason> reject,
+                                             Cons<Exception> failed) {
     joinSuccess = success;
     joinDenied = reject;
     joinFailed = failed;
     requestedRoom = -1;
+    lastRequest = null;
     setRequestTimeout(0);
     joining = false;
   }
 
   protected void runJoinSuccess() {
-    if (joinSuccess != null) postTask(joinSuccess);
+    if (joinSuccess != null) postTask(joinSuccess, makeJoinPacket(lastRequest));
     resetJoinState(null, null, null);
     close();
   }
@@ -367,18 +380,18 @@ public class ClajPinger extends Client {
     else requestRoomList();
   }
 
-  public void joinRoom(String host, int port, long roomId, Runnable success, Cons<RejectReason> reject,
+  public void joinRoom(String host, int port, long roomId, Cons<ByteBuffer> success, Cons<RejectReason> reject,
                        Cons<Exception> failed) {
     joinRoom(host, port, roomId, false, NO_PASSWORD, success, reject, failed);
   }
 
-  public void joinRoom(String host, int port, long roomId, short password, Runnable success,
+  public void joinRoom(String host, int port, long roomId, short password, Cons<ByteBuffer> success,
                        Cons<RejectReason> reject, Cons<Exception> failed) {
     joinRoom(host, port, roomId, true, password, success, reject, failed);
   }
 
-  protected void joinRoom(String host, int port, long roomId, boolean withPassword, short password, Runnable success,
-                          Cons<RejectReason> reject, Cons<Exception> failed) {
+  protected void joinRoom(String host, int port, long roomId, boolean withPassword, short password,
+                          Cons<ByteBuffer> success, Cons<RejectReason> reject, Cons<Exception> failed) {
     if (!canceling) {
       try { connect(host, port); }
       catch (Exception e) {
@@ -430,12 +443,20 @@ public class ClajPinger extends Client {
   }
 
   protected void requestRoomJoin(long roomId, boolean withPassword, short password) {
-    RoomJoinPacket p = new RoomJoinPacket();
+    RoomJoinRequestPacket p = new RoomJoinRequestPacket();
     p.roomId = roomId;
     p.withPassword = withPassword && password != NO_PASSWORD;
     p.password = password;
     p.type = provider.getType();
+    lastRequest = p;
     sendTCP(p);
+  }
+
+  protected ByteBuffer makeJoinPacket(RoomJoinRequestPacket request) {
+    if (request == null) return null;
+    ByteBuffer buff = ByteBuffer.allocate(64);
+    getSerialization().write(buff, request.toJoinPacket()); // not thread-safe
+    return (ByteBuffer)buff.flip();
   }
 
 
@@ -448,8 +469,9 @@ public class ClajPinger extends Client {
     public Object read(ByteBuffer buffer) {
       if (pinger.pinging) {
         if (!buffer.hasRemaining() || buffer.get() == ClajNet.id) {
-          read.buffer = buffer;
-          return new ServerInfoPacket().r(read);
+          ByteBufferInput readi = read.get();
+          readi.buffer = buffer;
+          return new ServerInfoPacket().r(readi);
         }
         buffer.position(buffer.position()-1);
       }

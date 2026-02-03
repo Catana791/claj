@@ -23,6 +23,7 @@ import arc.Files;
 import arc.files.Fi;
 import arc.struct.ObjectSet;
 
+import com.xpdustry.claj.common.status.ClajType;
 import com.xpdustry.claj.server.util.JsonSettings;
 
 
@@ -36,14 +37,21 @@ public class ClajConfig {
   /** Limit for packet count sent within 3 sec that will lead to a disconnect. Ignored for room hosts. */
   public static int spamLimit = 300;
   /** Limit of room join requests per minute. The server will act as if the room had not been found. */
-  public static int joinLimit = 20;
-  /** Warn a client that trying to create a room, that it's CLaJ version is deprecated. */
+  public static int joinLimit = 30;
+  /**
+   * Whether to accept or not clients who attempt to join a room without specifying their CLaJ implementation. <br>
+   * Setting this to {@code false} will break compatibility with older CLaJ versions.
+   */
+  public static boolean acceptNoType = true;
+  /** Warn a client that trying to create a room, that it's CLaJ version is deprecated
+   * (not clients trying to join a room). */
   public static boolean warnDeprecated = true;
   /** Warn all clients when the server is closing */
   public static boolean warnClosing = true;
   /** Simple ip blacklist */
   public static ObjectSet<String> blacklist = new ObjectSet<>();
-
+  /** List of implementation not accepted by the server. */
+  public static ObjectSet<ClajType> blacklistedTypes = new ObjectSet<>();
 
   @SuppressWarnings("unchecked")
   public static void load() {

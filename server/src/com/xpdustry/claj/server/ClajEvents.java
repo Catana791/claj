@@ -57,6 +57,16 @@ public class ClajEvents {
     }
   }
 
+  /** When a connection will join a room. */
+  public static class ConnectionPreJoinEvent {
+    public final ClajConnection connection;
+    public final ClajRoom room;
+
+    public ConnectionPreJoinEvent(ClajConnection connection, ClajRoom room) {
+      this.connection = connection;
+      this.room = room;
+    }
+  }
   /** When a connection join a room. */
   public static class ConnectionJoinAcceptedEvent {
     public final ClajConnection connection;

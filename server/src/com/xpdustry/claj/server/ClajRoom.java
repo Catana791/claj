@@ -78,21 +78,15 @@ public class ClajRoom implements NetListener {
     if (connection.getArbitraryData() instanceof ClajConnection con) connected(con);
   }
 
-  /** Alerts the host of the client arrival and notifies the connection of acceptance. */
+  /** Alerts the host of the client arrival. */
   public void connected(ClajConnection connection) {
     if (closed) return;
 
-    // Notify host
     ConnectionJoinPacket p = new ConnectionJoinPacket();
     p.conID = connection.id;
     p.roomId = id;
     p.addressHash = AddressUtil.hash(connection.connection);
     host.send(p); // Assumes the host is still connected
-
-    // Notify client
-    RoomJoinAcceptedPacket a = new RoomJoinAcceptedPacket();
-    a.roomId = id;
-    connection.send(a);
 
     clients.put(connection.id, connection);
   }

@@ -79,7 +79,8 @@ public class ClajRelay extends Server implements ApplicationListener {
     networkSpeed = speedCalculator;
     receiver = new ServerReceiver(this, Core.app::post);
     //TODO: very useful?
-    StaleConnectionsCleaner.init(this, 10 * 1000, RoomCreationRequestPacket.class, RoomJoinPacket.class);
+    StaleConnectionsCleaner.init(this, 10 * 1000,
+      RoomCreationRequestPacket.class, RoomJoinRequestPacket.class, RoomJoinPacket.class);
 
     setDiscoveryHandler((c, r) -> {
       if (versionBuff == null)
@@ -211,9 +212,11 @@ public class ClajRelay extends Server implements ApplicationListener {
         Log.warn("Connection @ tried to create a room but has " + (isGreater ? "a too recent" : "an outdated") +
                  " version. (was: @)", con.sid, p.version);
         return;
-
-      //TODO: blacklisted implementations
-
+      } else if (p.type != null && ClajConfig.blacklistedTypes.contains(p.type)) {
+        rejectRoomCreation(con, CloseReason.blacklisted);
+        Log.warn("Connection @ tried to create a room but his implementation is blacklisted. (was: @)", con.sid,
+                 p.type);
+        return;
       // Ignore if the connection is already in a room or hold one
       } else if (room != null) {
         room.message(MessageType.alreadyHosting);
@@ -243,6 +246,7 @@ public class ClajRelay extends Server implements ApplicationListener {
     receiver.handle(RoomJoinPacket.class, (c, p) -> {
       ClajConnection con = toClajCon(c);
       ClajRoom room = find(c);
+      boolean isRequest = p instanceof RoomJoinRequestPacket;
 
       // Disconnect from a potential another room.
       if (room != null) {
@@ -260,33 +264,45 @@ public class ClajRelay extends Server implements ApplicationListener {
       room = get(p.roomId);
 
       if (isClosed()) {
-        rejectRoomJoin(con, room, p.roomId, RejectReason.serverClosing);
+        if (isRequest) rejectRoomJoin(con, room, p.roomId, RejectReason.serverClosing);
+        else con.close(DcReason.error);
         Log.warn("Connection @ tried to join the room @ but the server is closed.", con.sid,
                  room == null ? Strings.longToBase64(p.roomId) : room.sid);
         return;
       } else if (room == null) {
-        rejectRoomJoin(con, room, p.roomId, RejectReason.roomNotFound);
+        if (isRequest) rejectRoomJoin(con, room, p.roomId, RejectReason.roomNotFound);
+        else con.close(DcReason.error);
         Log.warn("Connection @ tried to join the room @ but it doesn't exist.", con.sid,
                  Strings.longToBase64(p.roomId));
         return;
       // Limit to avoid room searching
-      } else if (ClajConfig.joinLimit > 0 && !con.joinRate.allow(60000L, ClajConfig.joinLimit)) {
+      } else if (ClajConfig.joinLimit > 0 && !con.joinRate.allow(60000L, ClajConfig.joinLimit)) { //TODO: not reliable
         // Act same way as not found
-        rejectRoomJoin(con, room, RejectReason.roomNotFound);
+        if (isRequest) rejectRoomJoin(con, room, RejectReason.roomNotFound);
+        else con.close(DcReason.error);
         Log.warn("Connection @ tried to join the room @ but was rate limited.", con.sid, room.sid);
         return;
-      } else if (!room.type.equals(p.type)) {
-        rejectRoomJoin(con, room, RejectReason.incompatible);
+      } else if (room.type != null && !room.type.equals(p.type) && !(p.type == null && ClajConfig.acceptNoType)) {
+        if (isRequest) rejectRoomJoin(con, room, RejectReason.incompatible);
+        else con.close(DcReason.error);
         Log.warn("Connection @ tried to join the room @ but has an incompatible type. (was: @, need: @)",
                  con.sid, room.sid, p.type, room.type);
         return;
       } else if (room.isProtected && !p.withPassword) {
-        rejectRoomJoin(con, room, RejectReason.passwordRequired);
+        if (isRequest) rejectRoomJoin(con, room, RejectReason.passwordRequired);
+        else con.close(DcReason.error);
         Log.warn("Connection @ tried to join the room @ but a password is needed.", con.sid, room.sid);
         return;
       } else if (room.isProtected && room.password != p.password) {
-        rejectRoomJoin(con, room, RejectReason.invalidPassword);
+        if (isRequest) rejectRoomJoin(con, room, RejectReason.invalidPassword);
+        else con.close(DcReason.error);
         Log.warn("Connection @ tried to join the room @ but used the wrong password.", con.sid, room.sid);
+        return;
+
+      } else if (isRequest) {
+        acceptJoinRequest(con, room);
+        Log.debug("Connection @ validated its join request to the room @.", con.sid, room.sid);
+        Events.fire(new ConnectionPreJoinEvent(con, room));
         return;
       }
 
@@ -305,6 +321,7 @@ public class ClajRelay extends Server implements ApplicationListener {
 
       Events.fire(new ConnectionJoinAcceptedEvent(con, room));
     });
+    receiver.handle(RoomJoinRequestPacket.class, (c, p) -> receiver.getListener(RoomJoinPacket.class).get(c, p));
     receiver.handle(RoomConfigPacket.class, (c, p) -> {
       ClajConnection con = toClajCon(c);
       ClajRoom room = find(c);
@@ -512,6 +529,12 @@ public class ClajRelay extends Server implements ApplicationListener {
     connection.send(p);
     Events.fire(new ConnectionJoinRejectedEvent(connection, room, reason));
     connection.close();
+  }
+
+  public void acceptJoinRequest(ClajConnection connection, ClajRoom room) {
+    RoomJoinAcceptedPacket p = new RoomJoinAcceptedPacket();
+    p.roomId = room.id;
+    connection.send(p);
   }
 
   public long newRoomId() {

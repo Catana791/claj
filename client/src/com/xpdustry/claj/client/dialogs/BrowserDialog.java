@@ -238,7 +238,7 @@ public class BrowserDialog extends BaseDialog {
         ping.clear();
         label.clear();
         ping.image(Icon.cancel, Color.red).left();
-        label.add("@claj.browser.timeout");
+        label.add("@claj.browser.timeout").padTop(5).padBottom(5);
         error.get(e);
       });
     }).padLeft(10).padRight(10).growX().row();
@@ -262,10 +262,14 @@ public class BrowserDialog extends BaseDialog {
       done.run();
     }, e -> {
       dest.clear();
-      dest.table(ping -> {
-        ping.image(Icon.cancel, Color.red).padLeft(5).padRight(5).left();
-        ping.add("@claj.browser.timeout");
-      }).growX();
+      dest.table(inner -> {
+        Table label = new Table().center();
+        Table ping = new Table().left();
+        inner.stack(label, ping).growX().row();
+
+        ping.image(Icon.cancel, Color.red).left();
+        label.add("@claj.browser.timeout").padTop(5).padBottom(5);
+      }).padLeft(10).padRight(10).growX().row();
       error.get(e);
     });
   }

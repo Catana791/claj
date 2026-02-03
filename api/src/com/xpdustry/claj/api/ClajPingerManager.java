@@ -192,8 +192,8 @@ public class ClajPingerManager {
   public void joinRoom(ClajLink link, Runnable success, Cons<RejectReason> reject, Cons<Exception> failed) {
     if (link == null) return;
     submit((pinger, finished) -> {
-      pinger.joinRoom(link.host, link.port, link.roomId, () -> {
-        provider.connectClient(link.host, link.port, success);
+      pinger.joinRoom(link.host, link.port, link.roomId, join -> {
+        provider.connectClient(link.host, link.port, success, join);
         finished.run();
       }, reason -> {
         if (reject != null) reject.get(reason);
@@ -209,8 +209,8 @@ public class ClajPingerManager {
                        Cons<Exception> failed) {
     if (link == null) return;
     submit((pinger, finished) -> {
-      pinger.joinRoom(link.host, link.port, link.roomId, password, () -> {
-        provider.connectClient(link.host, link.port, success);
+      pinger.joinRoom(link.host, link.port, link.roomId, password, join -> {
+        provider.connectClient(link.host, link.port, success, join);
         finished.run();
       }, reason -> {
         if (reject != null) reject.get(reason);

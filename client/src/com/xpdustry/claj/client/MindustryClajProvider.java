@@ -106,13 +106,15 @@ public class MindustryClajProvider implements ClajProvider {
   }
 
   @Override
-  public void connectClient(String host, int port, Runnable success) {
+  public void connectClient(String host, int port, Runnable success, ByteBuffer joinPacket) {
     Vars.logic.reset();
     Vars.net.reset();
     Vars.netClient.beginConnecting();
     Vars.net.connect(host, port, () -> {
       if (!Vars.net.client()) return;
       if (success != null) success.run();
+      //TODO: Override Connect listener to send it before ConnectPacket?
+      if (joinPacket != null) Vars.net.send(joinPacket, true);
     });
   }
 

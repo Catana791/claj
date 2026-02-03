@@ -74,11 +74,10 @@ public interface ClajProvider {
 
   /**
    * Connect the client to the specified server. <br>
-   * {@code success} can be null and must be called if connected successfully.
+   * @param success can be {@code null} and must be called when connected successfully.
+   * @param joinPacket must be send in the client connection after connected successfully.
    */
-  default void connectClient(String host, int port, Runnable success) {
-    if (success != null) success.run();
-  }
+  void connectClient(String host, int port, Runnable success, ByteBuffer joinPacket);
 
   /**
    * <strong>Essential for the protocol to work!</strong>

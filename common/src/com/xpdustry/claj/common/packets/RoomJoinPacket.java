@@ -25,6 +25,12 @@ import arc.util.io.ByteBufferOutput;
 import com.xpdustry.claj.common.status.ClajType;
 
 
+/**
+ * Should be sent by the actual client connection after connected successfully and checked request validity. <br>
+ * The packet will be manually serialized as, normally, no CLaJ serializer is defined in the actual client connection.
+ *
+ * @see RoomJoinRequestPacket
+ */
 public class RoomJoinPacket extends RoomLinkPacket {
   public boolean withPassword;
   /** Room pin password. */

@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 
 import arc.net.FrameworkMessage;
 import arc.net.NetSerializer;
+import arc.util.Threads;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
@@ -49,10 +50,9 @@ public class ClajServerSerializer implements NetSerializer, FrameworkSerializer 
     };
   }
 
-  //maybe faster without ThreadLocal?
-  private final ByteBufferInput read = new ByteBufferInput();
-  private final ByteBufferOutput write = new ByteBufferOutput();
-  private final NetworkSpeed networkSpeed;
+  protected final ThreadLocal<ByteBufferInput> read = Threads.local(ByteBufferInput::new);
+  protected final ThreadLocal<ByteBufferOutput> write = Threads.local(ByteBufferOutput::new);
+  protected final NetworkSpeed networkSpeed;
   private int lastPos;
 
   /** @param networkSpeed is for debugging, sets to null to disable it */
@@ -63,34 +63,30 @@ public class ClajServerSerializer implements NetSerializer, FrameworkSerializer 
   @Override
   public Object read(ByteBuffer buffer) {
     if (networkSpeed != null) networkSpeed.downloadMark(buffer.remaining());
-    read.buffer = buffer;
+    ByteBufferInput readi = read.get();
+    readi.buffer = buffer;
 
     return switch (buffer.get()) {
       case ClajNet.frameworkId -> readFramework(buffer);
-      case ClajNet.oldId -> Strings.readUTF(read);
-      case ClajNet.id -> readClaj(buffer);
+      case ClajNet.oldId -> Strings.readUTF(readi);
+      case ClajNet.id -> {
+        Packet packet = ClajNet.newPacket(buffer.get());
+        packet.read(readi);
+        yield packet;
+      }
       // Non-claj packets are saved as raw buffer, to avoid re-serialization
-      default -> readRaw(buffer);
+      default -> {
+        buffer.position(buffer.position()-1);
+        yield new RawPacket().r(readi);
+      }
     };
-  }
-
-  /** {@link ByteBufferInput#buffer} must be set before. */
-  public Packet readClaj(ByteBuffer buffer) {
-    Packet packet = ClajNet.newPacket(buffer.get());
-    packet.read(read);
-    return packet;
-  }
-
-  /** {@link ByteBufferInput#buffer} must be set before. */
-  public RawPacket readRaw(ByteBuffer buffer) {
-    buffer.position(buffer.position()-1);
-    return new RawPacket().r(read);
   }
 
   @Override
   public void write(ByteBuffer buffer, Object object) {
     if (networkSpeed != null) lastPos = buffer.position();
-    write.buffer = buffer;
+    ByteBufferOutput writeo = write.get();
+    writeo.buffer = buffer;
 
     if (object instanceof ByteBuffer buf) {
       buffer.put(buf);
@@ -101,12 +97,12 @@ public class ClajServerSerializer implements NetSerializer, FrameworkSerializer 
 
     } else if (object instanceof String str && ClajConfig.warnDeprecated) {
       buffer.put(ClajNet.oldId);
-      Strings.writeUTF(write, str);
+      Strings.writeUTF(writeo, str);
 
     } else if (object instanceof Packet packet) {
       if (!(object instanceof RawPacket))
         buffer.put(ClajNet.id).put(ClajNet.getId(packet));
-      packet.write(write);
+      packet.write(writeo);
     }
 
     if (networkSpeed != null) networkSpeed.uploadMark(buffer.position() - lastPos);

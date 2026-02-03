@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import arc.net.ArcNetException;
 import arc.net.FrameworkMessage;
 import arc.net.NetSerializer;
+import arc.util.Threads;
 import arc.util.io.ByteBufferInput;
 import arc.util.io.ByteBufferOutput;
 
@@ -33,9 +34,8 @@ import com.xpdustry.claj.common.packets.Packet;
 
 
 public class ClajClientSerializer implements NetSerializer, FrameworkSerializer {
-  //maybe faster without ThreadLocal?
-  protected final ByteBufferInput read = new ByteBufferInput();
-  protected final ByteBufferOutput write = new ByteBufferOutput();
+  protected final ThreadLocal<ByteBufferInput> read = Threads.local(ByteBufferInput::new);
+  protected final ThreadLocal<ByteBufferOutput> write = Threads.local(ByteBufferOutput::new);
 
   @Override
   public Object read(ByteBuffer buffer) {
@@ -53,8 +53,9 @@ public class ClajClientSerializer implements NetSerializer, FrameworkSerializer 
 
   public Packet readClaj(ByteBuffer buffer) {
     Packet packet = ClajNet.newPacket(buffer.get());
-    read.buffer = buffer;
-    packet.read(read);
+    ByteBufferInput readi = read.get();
+    readi.buffer = buffer;
+    packet.read(readi);
     return packet;
   }
 
@@ -69,8 +70,9 @@ public class ClajClientSerializer implements NetSerializer, FrameworkSerializer 
 
     } else if (object instanceof Packet packet) {
       buffer.put(ClajNet.id).put(ClajNet.getId(packet));
-      write.buffer = buffer;
-      packet.write(write);
+      ByteBufferOutput writeo = write.get();
+      writeo.buffer = buffer;
+      packet.write(writeo);
 
     } else {
       throw new ArcNetException("Unknown packet type: " + object.getClass());
